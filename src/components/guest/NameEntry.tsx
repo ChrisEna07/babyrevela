@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { EVENT_NAME, EVENT_TAGLINE } from "@/lib/constants";
 import { QRCodeCard } from "@/components/shared/QRCodeCard";
+import { BabyThoughts } from "./BabyThoughts";
 
 export function NameEntry({
   onDone,
@@ -147,6 +148,11 @@ export function NameEntry({
           </p>
         </div>
       </motion.section>
+
+      {/* Baby Thoughts Humor Section */}
+      <div className="w-full">
+        <BabyThoughts />
+      </div>
 
       {/* QR Code Section */}
       <div className="w-full">

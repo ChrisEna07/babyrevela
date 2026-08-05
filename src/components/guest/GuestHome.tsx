@@ -11,6 +11,7 @@ import { VotePanel } from "./VotePanel";
 import { PercentageBar } from "./PercentageBar";
 import { Countdown } from "./Countdown";
 import { RevealScreen } from "./RevealScreen";
+import { BabyThoughts } from "./BabyThoughts";
 import { ConnectionPill } from "@/components/shared/ConnectionPill";
 import { FullPageLoader } from "@/components/shared/FullPageLoader";
 
@@ -31,9 +32,11 @@ function WaitingScreen() {
       </div>
       <h2 className="font-display text-3xl text-ink">Esperando al anfitrión…</h2>
       <p className="max-w-sm text-sm font-semibold text-ink-soft">
-        Cuando abran las votaciones, verás las opciones aquí automáticamente.
-        Quédate en esta pantalla 😉
+        Mientras abren las votaciones, ¡mira lo que piensa el bebé acá adentro! 👇
       </p>
+      
+      {/* Dynamic Baby Thoughts Speech Bubble */}
+      <BabyThoughts />
     </motion.div>
   );
 }
@@ -117,6 +120,7 @@ export function GuestHome() {
             onVote={(team: Team) => void castVote(guest.id, guest.name, team)}
           />
           <PercentageBar totals={totals} />
+          <BabyThoughts compact />
         </>
       )}
 

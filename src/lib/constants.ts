@@ -32,3 +32,21 @@ export const TEAM_CONFIG: Record<
     verb: "rosa",
   },
 };
+
+export const BABY_THOUGHTS = [
+  "Espero que al nacer mi papá me compre un biberón blandito... 🍼",
+  "Si le cuento a mamá que el bebé de al lado me parece lindo, ¿será muy precoz o crezco primero? 🤭",
+  "Oigan, aquí adentro hace calorcito, pero ya quiero probar el pastel de la fiesta 🍰",
+  "Tengo una duda existencial... ¿mis papás ya eligieron mi nombre o van a improvisar el día del parto? 🧐",
+  "Prometo no llorar a las 3:00 AM... mentira, sí voy a llorar a las 3:00 AM 😈👶",
+  "Siento muchas pataditas por aquí... ¡es que estoy practicando para ser futbolista o bailarina! ⚽🩰",
+  "¿Quién votó por niño? ¿Y quién por niña? Espero que hayan apostado regalitos bonitos 🎁✨",
+  "Por si acaso, desde ya les aviso que me parezco 99% a mi mamá y 1% a mi papá 😜",
+  "Mamá, si sientes que me muevo mucho es porque estoy bailando la música de los tíos 🎶💃",
+  "Papis, recuerden: la ropa de bebé sin etiquetas rasposas, por favor 🧸",
+  "Escucho muchas risas allá afuera... ¡ya quiero salir a conocer a mis tíos consentidores! 🥰",
+  "Doctor, por favor tome mi mejor ángulo en el próximo ultrasonido 📸👶",
+  "Si soy niño seré un galán, si soy niña seré una reina... ¡de cualquier forma seré el consentido! 👑💙💗",
+  "¡Oigan! ¿Ya falta mucho para la cuenta regresiva? ¡La emoción me da hipo acá adentro! 🤭⏱️",
+  "Mi pasatiempo favorito en la panza: chuparme el dedo y patear la vejiga de mamá 🍼💥",
+];
