@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useState } from "react";
 import { EVENT_NAME, EVENT_TAGLINE } from "@/lib/constants";
+import { QRCodeCard } from "@/components/shared/QRCodeCard";
 
 export function NameEntry({
   onDone,
@@ -146,6 +147,11 @@ export function NameEntry({
           </p>
         </div>
       </motion.section>
+
+      {/* QR Code Section */}
+      <div className="w-full">
+        <QRCodeCard title="📱 Código QR para los Invitados" url="https://babyrevela.vercel.app/" />
+      </div>
 
       {/* Roles & Organization Access */}
       <motion.section

@@ -90,11 +90,16 @@ const icons = [
   { name: "icon-512.png", size: 512, heartScale: 0.4, maskable: false },
   { name: "icon-maskable-512.png", size: 512, heartScale: 0.26, maskable: true },
   { name: "apple-touch-icon.png", size: 180, heartScale: 0.4, maskable: false },
+  { name: "favicon.ico", size: 48, heartScale: 0.4, maskable: false },
 ];
 
 for (const icon of icons) {
   const buffer = render(icon.size, icon);
   const file = resolve(outDir, icon.name);
   writeFileSync(file, buffer);
+  if (icon.name === "favicon.ico") {
+    const appFile = resolve(here, "../src/app/favicon.ico");
+    writeFileSync(appFile, buffer);
+  }
   console.log(`✓ ${icon.name} (${buffer.length} bytes)`);
 }

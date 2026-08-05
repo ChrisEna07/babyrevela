@@ -17,6 +17,7 @@ import { COUNTDOWN_OPTIONS, DEFAULT_COUNTDOWN } from "@/lib/constants";
 import { ConnectionPill } from "@/components/shared/ConnectionPill";
 import { FullPageLoader } from "@/components/shared/FullPageLoader";
 import { PercentageBar } from "@/components/guest/PercentageBar";
+import { QRCodeCard } from "@/components/shared/QRCodeCard";
 
 const PHASE_LABELS: Record<AppState["phase"], string> = {
   idle: "En espera",
@@ -177,6 +178,9 @@ export function AdminPanel({
           <PercentageBar totals={totals} />
         </div>
       </section>
+
+      {/* Código QR para los invitados */}
+      <QRCodeCard title="📱 Código QR para los Invitados" url="https://babyrevela.vercel.app/" />
 
       {/* 2. Revelación y Cuenta Regresiva Automática */}
       <section className="rounded-3xl border-4 border-gold bg-white/90 p-5 shadow-xl backdrop-blur">

@@ -26,7 +26,8 @@ export const metadata: Metadata = {
     title: "Baby Revela",
   },
   icons: {
-    icon: "/icon-512.png",
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
 };
