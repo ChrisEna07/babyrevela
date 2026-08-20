@@ -24,7 +24,14 @@ function WaitingScreen() {
       animate={{ opacity: 1, y: 0 }}
       className="flex w-full flex-col items-center gap-6 text-center"
     >
-      <div className="flex gap-3 text-5xl">
+      <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-white shadow-xl bg-amber-50">
+        <img
+          src="/gift/Season 6 Finale GIF by Bachelor in Paradise.gif"
+          alt="Waiting Party GIF"
+          className="h-full w-full object-cover"
+        />
+      </div>
+      <div className="flex gap-3 text-3xl">
         <span className="animate-float-slow inline-block">💙</span>
         <span className="inline-block" style={{ animation: "float-slow 5s ease-in-out infinite reverse" }}>
           💗

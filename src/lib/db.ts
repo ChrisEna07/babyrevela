@@ -12,6 +12,8 @@ import { getRTDB } from "./firebase";
 import type {
   AppState,
   HistoricalSession,
+  RSVP,
+  RSVPMap,
   RevealerInfo,
   SuperAdminInfo,
   Team,
@@ -38,6 +40,21 @@ export function subscribeState(callback: (state: AppState) => void): Unsubscribe
       });
     },
     (error) => console.error("Error leyendo state:", error)
+  );
+}
+
+export function setParentsNames(names: string): Promise<void> {
+  return set(ref(db(), "meta/parentsNames"), names.trim());
+}
+
+export function subscribeParentsNames(callback: (names: string) => void): Unsubscribe {
+  return onValue(
+    ref(db(), "meta/parentsNames"),
+    (snapshot) => {
+      const val = snapshot.val();
+      callback(typeof val === "string" ? val : "Mamá & Papá");
+    },
+    (error) => console.error("Error leyendo parentsNames:", error)
   );
 }
 
@@ -308,4 +325,82 @@ export function bucketVotesByMinute(entries: VoteLogEntry[]): {
     buckets[index].total++;
   }
   return buckets;
+}
+
+export function submitRSVP(
+  name: string,
+  attending: boolean,
+  guestsCount: number,
+  message?: string
+): Promise<void> {
+  const id = `rsvp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const rsvp: RSVP = {
+    id,
+    name: name.trim(),
+    attending,
+    guestsCount,
+    message: message?.trim() || "",
+    createdAt: Date.now(),
+  };
+  return set(ref(db(), `rsvps/${id}`), rsvp);
+}
+
+export function subscribeRSVPs(
+  callback: (rsvps: RSVP[]) => void
+): Unsubscribe {
+  return onValue(
+    ref(db(), "rsvps"),
+    (snapshot) => {
+      const raw = snapshot.val() as RSVPMap | null;
+      if (!raw) return callback([]);
+      const list = Object.values(raw).sort((a, b) => b.createdAt - a.createdAt);
+      callback(list);
+    },
+    (error) => {
+      console.warn("Información de rsvps no disponible aún:", error.message);
+      callback([]);
+    }
+  );
+}
+
+export function createHostSetupLink(superAdminPinHash: string): Promise<string> {
+  const token = `setup_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  return set(ref(db(), "meta/hostSetupToken"), {
+    token,
+    createdAt: Date.now(),
+    createdBy: superAdminPinHash,
+    active: true,
+  }).then(() => token);
+}
+
+export function getHostSetupTokenInfo(): Promise<{ token: string; active: boolean } | null> {
+  return get(ref(db(), "meta/hostSetupToken")).then((snapshot) => {
+    return snapshot.val() || null;
+  });
+}
+
+export function completeHostSetup(
+  token: string,
+  hostName: string,
+  newPinHash: string
+): Promise<void> {
+  return get(ref(db(), "meta/hostSetupToken")).then((snap) => {
+    const data = snap.val();
+    if (!data || data.token !== token || !data.active) {
+      throw new Error("El enlace de configuración no es válido o ya fue utilizado.");
+    }
+    return Promise.all([
+      set(ref(db(), "meta/pinHash"), newPinHash),
+      set(ref(db(), "meta/hostName"), hostName),
+      update(ref(db(), "meta/hostSetupToken"), { active: false, usedAt: Date.now() }),
+    ]).then(() => undefined);
+  });
+}
+
+export function resetHostCredentials(): Promise<void> {
+  return Promise.all([
+    set(ref(db(), "meta/pinHash"), null),
+    set(ref(db(), "meta/hostName"), null),
+    set(ref(db(), "meta/hostSetupToken"), null),
+  ]).then(() => undefined);
 }

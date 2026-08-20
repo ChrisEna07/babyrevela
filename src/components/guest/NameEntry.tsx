@@ -28,12 +28,21 @@ export function NameEntry({
         transition={{ type: "spring", stiffness: 120, damping: 16 }}
         className="flex flex-col items-center gap-4 text-center"
       >
-        <div className="flex items-center justify-center gap-3 text-5xl">
-          <span className="animate-float-slow inline-block">👶</span>
-          <span className="animate-pulse-gold inline-block text-4xl">✨</span>
-          <span className="inline-block" style={{ animation: "float-slow 5s ease-in-out infinite reverse" }}>
-            🍼
-          </span>
+        <div className="flex flex-col items-center justify-center gap-3">
+          <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-white shadow-xl bg-amber-50">
+            <img
+              src="/gift/Powder Explodes All Over Wife At Gender Reveal GIF by ViralHog.gif"
+              alt="Gender Reveal Party GIF"
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <div className="flex items-center justify-center gap-3 text-3xl">
+            <span className="animate-float-slow inline-block">👶💙</span>
+            <span className="animate-pulse-gold inline-block text-2xl">✨</span>
+            <span className="inline-block" style={{ animation: "float-slow 5s ease-in-out infinite reverse" }}>
+              👧💗
+            </span>
+          </div>
         </div>
 
         <span className="rounded-full bg-amber-100 px-4 py-1 text-xs font-extrabold uppercase tracking-widest text-amber-800 shadow-sm">
@@ -125,24 +134,42 @@ export function NameEntry({
         className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3"
       >
         <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-baby-blue-light bg-white/80 p-4 text-center shadow-md">
-          <span className="text-3xl">1️⃣</span>
-          <h3 className="font-bold text-slate-800 text-sm">Ingresa tu apodo</h3>
+          <div className="h-16 w-16 overflow-hidden rounded-full border-2 border-sky-300 shadow">
+            <img
+              src="/gift/Baby Boy Parents GIF by FirstCry Parenting.gif"
+              alt="Step 1 GIF"
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <h3 className="font-bold text-slate-800 text-sm">1️⃣ Ingresa tu apodo</h3>
           <p className="text-xs font-medium text-slate-500">
             Regístrate rápidamente sin contraseñas ni registros largos.
           </p>
         </div>
 
         <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-baby-pink-light bg-white/80 p-4 text-center shadow-md">
-          <span className="text-3xl">2️⃣</span>
-          <h3 className="font-bold text-slate-800 text-sm">Vota tu predicción</h3>
+          <div className="h-16 w-16 overflow-hidden rounded-full border-2 border-pink-300 shadow">
+            <img
+              src="/gift/Adorable Reaction To New Little Girl In Gender Reveal GIF by ViralHog.gif"
+              alt="Step 2 GIF"
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <h3 className="font-bold text-slate-800 text-sm">2️⃣ Vota tu predicción</h3>
           <p className="text-xs font-medium text-slate-500">
             Elige Team Niño 👦 o Team Niña 👧 y sigue los porcentajes en vivo.
           </p>
         </div>
 
         <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-amber-200 bg-white/80 p-4 text-center shadow-md">
-          <span className="text-3xl">3️⃣</span>
-          <h3 className="font-bold text-slate-800 text-sm">¡Revelación en vivo!</h3>
+          <div className="h-16 w-16 overflow-hidden rounded-full border-2 border-amber-300 shadow">
+            <img
+              src="/gift/Tracee Ellis Ross Party GIF by ABC Network.gif"
+              alt="Step 3 GIF"
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <h3 className="font-bold text-slate-800 text-sm">3️⃣ ¡Revelación en vivo!</h3>
           <p className="text-xs font-medium text-slate-500">
             Vive la cuenta regresiva sincronizada con confetti en pantalla.
           </p>
@@ -175,7 +202,31 @@ export function NameEntry({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {/* Card Invitación */}
+          <Link
+            href="/invitacion"
+            className="flex flex-col justify-between rounded-2xl border-2 border-pink-200 bg-pink-50/50 p-4 shadow transition hover:-translate-y-0.5 hover:border-pink-400 hover:shadow-md"
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-2xl">💌</span>
+                <span className="rounded-full bg-pink-200 px-2.5 py-0.5 text-[10px] font-extrabold text-pink-800">
+                  RSVP
+                </span>
+              </div>
+              <h3 className="mt-2 font-extrabold text-slate-800 text-base">
+                Carta de Invitación
+              </h3>
+              <p className="mt-1 text-xs font-medium text-slate-600">
+                Ver tarjeta de invitación, guía de regalos y confirmar asistencia.
+              </p>
+            </div>
+            <span className="mt-4 block w-full rounded-xl bg-pink-600 py-2 text-center text-xs font-bold text-white shadow transition hover:bg-pink-700">
+              Ver Invitación →
+            </span>
+          </Link>
+
           {/* Card Anfitrión & Revelador */}
           <Link
             href="/admin"
@@ -192,7 +243,7 @@ export function NameEntry({
                 Panel del Anfitrión
               </h3>
               <p className="mt-1 text-xs font-medium text-slate-600">
-                Abre y cierra votaciones, configura el contador y activa la revelación en vivo.
+                Abre y cierra votaciones, configura el contador y activa la revelación.
               </p>
             </div>
             <span className="mt-4 block w-full rounded-xl bg-emerald-600 py-2 text-center text-xs font-bold text-white shadow transition hover:bg-emerald-700">
@@ -216,7 +267,7 @@ export function NameEntry({
                 Súper Administración
               </h3>
               <p className="mt-1 text-xs font-medium text-slate-600">
-                Dashboard completo con gráfico de votos por minuto y métricas avanzadas.
+                Dashboard completo, RSVPs y enlace seguro para anfitrión.
               </p>
             </div>
             <span className="mt-4 block w-full rounded-xl bg-purple-600 py-2 text-center text-xs font-bold text-white shadow transition hover:bg-purple-700">
@@ -230,7 +281,7 @@ export function NameEntry({
       <footer className="text-center">
         <p className="text-xs font-bold text-slate-500">
           Baby Revela • Desarrollado con ❤️ por{" "}
-          <span className="font-extrabold text-gold-dark">ChrizDev</span>
+          <span className="font-extrabold text-gold-dark">ChrizDev (Christian Romero)</span>
         </p>
       </footer>
     </div>

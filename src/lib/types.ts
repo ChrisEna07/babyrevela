@@ -57,3 +57,23 @@ export interface HistoricalSession {
   totals: VoteTotals;
   votes: Vote[];
 }
+
+export interface RSVP {
+  id: string;
+  name: string;
+  attending: boolean;
+  guestsCount: number;
+  message?: string;
+  createdAt: number;
+}
+
+export interface RSVPMap {
+  [id: string]: RSVP;
+}
+
+export interface HostConfig {
+  name: string;
+  pinHash: string;
+  setupToken?: string;
+  updatedAt?: number;
+}

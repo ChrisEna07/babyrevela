@@ -2,18 +2,21 @@ import type { Metadata, Viewport } from "next";
 import { Pacifico, Quicksand } from "next/font/google";
 import "./globals.css";
 import { PwaRegister } from "@/components/PwaRegister";
+import { FloatingBabySilhouettes } from "@/components/shared/FloatingBabySilhouettes";
 
 const pacifico = Pacifico({
   variable: "--font-pacifico",
   weight: "400",
   subsets: ["latin"],
   display: "swap",
+  fallback: ["cursive", "sans-serif"],
 });
 
 const quicksand = Quicksand({
   variable: "--font-quicksand",
   subsets: ["latin"],
   display: "swap",
+  fallback: ["sans-serif"],
 });
 
 export const metadata: Metadata = {
@@ -50,8 +53,9 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
       className={`${pacifico.variable} ${quicksand.variable}`}
     >
-      <body className="font-sans antialiased">
-        {children}
+      <body className="relative font-sans antialiased">
+        <FloatingBabySilhouettes />
+        <div className="relative z-10">{children}</div>
         <PwaRegister />
       </body>
     </html>

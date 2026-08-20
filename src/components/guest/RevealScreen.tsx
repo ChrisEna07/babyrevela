@@ -76,9 +76,24 @@ export function RevealScreen({
           initial={{ scale: 0.4, opacity: 0 }}
           animate={{ scale: [0.4, 1.15, 1], opacity: 1 }}
           transition={{ delay: 0.65, duration: 0.7, times: [0, 0.6, 1] }}
-          className="animate-float-slow text-6xl sm:text-8xl"
+          className="flex flex-col items-center gap-3"
         >
-          {isBoy ? "👦" : "👧"}
+          {/* Animated Gender Reveal GIF Sticker */}
+          <div className="relative h-44 w-44 overflow-hidden rounded-full border-4 border-white shadow-xl bg-slate-100">
+            <img
+              src={
+                isBoy
+                  ? "/gift/Its A Boy Baby GIF by Steve Harvey TV.gif"
+                  : "/gift/Girl Pink GIF by Shay Mitchell.gif"
+              }
+              alt="Gender Reveal Celebration GIF"
+              className="h-full w-full object-cover"
+            />
+          </div>
+
+          <span className="text-5xl sm:text-6xl animate-float-slow">
+            {isBoy ? "👦💙" : "👧💗"}
+          </span>
         </motion.div>
 
         <motion.h1
@@ -152,7 +167,7 @@ export function RevealScreen({
           transition={{ delay: 1.6 }}
           className="text-xs font-bold tracking-wider text-slate-400"
         >
-          Baby Revela • Desarrollado con ❤️ por <span className="font-extrabold text-slate-600">ChrizDev</span>
+          Baby Revela • Desarrollado con ❤️ por <span className="font-extrabold text-slate-600">ChrizDev (Christian Romero)</span>
         </motion.p>
       </motion.div>
     </div>

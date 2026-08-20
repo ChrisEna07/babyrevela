@@ -2,6 +2,7 @@ import type { Team } from "./types";
 
 export const EVENT_NAME = "Baby Revela";
 export const EVENT_TAGLINE = "¿Será niño o niña?";
+export const APP_DOMAIN = "https://babyrevela.vercel.app";
 
 export const GUEST_KEY = "babyrevela.guest.v1";
 export const ADMIN_KEY = "babyrevela.admin.v1";

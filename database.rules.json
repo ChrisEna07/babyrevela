@@ -1,24 +1,6 @@
 {
   "rules": {
-    "meta": {
-      ".read": true,
-      ".write": true
-    },
-    "state": {
-      ".read": true,
-      ".write": true
-    },
-    "voteLog": {
-      ".read": true,
-      ".write": true
-    },
-    "votes": {
-      ".read": true,
-      ".write": true
-    },
-    "history": {
-      ".read": true,
-      ".write": true
-    }
+    ".read": true,
+    ".write": true
   }
 }
