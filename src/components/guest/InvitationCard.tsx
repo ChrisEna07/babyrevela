@@ -4,8 +4,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { submitRSVP, subscribeParentsNames } from "@/lib/db";
+import { submitRSVP, subscribeEventSchedule, subscribeParentsNames } from "@/lib/db";
 import { EVENT_NAME, EVENT_TAGLINE } from "@/lib/constants";
+import type { EventSchedule } from "@/lib/types";
 
 export function InvitationCard() {
   const searchParams = useSearchParams();
@@ -13,6 +14,7 @@ export function InvitationCard() {
   const [mode, setMode] = useState<"presencial" | "remota">(initialMode);
 
   const [parentsNames, setParentsNamesState] = useState<string>("Mamá & Papá");
+  const [schedule, setSchedule] = useState<EventSchedule | null>(null);
   const [name, setName] = useState("");
   const [attending, setAttending] = useState<boolean>(true);
   const [guestsCount, setGuestsCount] = useState<number>(1);
@@ -27,8 +29,12 @@ export function InvitationCard() {
   const [fullScreenImageOpen, setFullScreenImageOpen] = useState(false);
 
   useEffect(() => {
-    const unsub = subscribeParentsNames(setParentsNamesState);
-    return () => unsub();
+    const unsubParents = subscribeParentsNames(setParentsNamesState);
+    const unsubSched = subscribeEventSchedule(setSchedule);
+    return () => {
+      unsubParents();
+      unsubSched();
+    };
   }, []);
 
   const valid = name.trim().length >= 2;
@@ -181,6 +187,55 @@ export function InvitationCard() {
               : `${parentsNames} están muy felices de celebrar la llegada de su bebé junto a las personas más especiales. Ven a compartir risas, emoción y el inolvidable momento de la revelación de sexo.`}
           </p>
         </div>
+
+        {/* Central Schedule Feedback Banner */}
+        {schedule?.revealTime ? (
+          <div className="flex flex-col gap-3 rounded-3xl border-2 border-amber-300 bg-amber-50/90 p-5 shadow-sm text-center">
+            <div className="flex items-center justify-center gap-2 text-amber-900">
+              <span className="text-xl">✨</span>
+              <span className="text-xs font-black uppercase tracking-wider text-amber-950">
+                ¡Horario Oficial Confirmado por el Anfitrión!
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 pt-1">
+              {schedule.eventDate && (
+                <div className="flex flex-col items-center justify-center rounded-2xl bg-white p-3 border border-amber-200 shadow-sm sm:col-span-2">
+                  <span className="text-[11px] font-extrabold uppercase text-amber-900">🗓️ Fecha del Evento:</span>
+                  <span className="font-display text-xl text-slate-800">{schedule.eventDate}</span>
+                </div>
+              )}
+
+              {/* Show Event Start Time ONLY for Presencial Guests */}
+              {mode === "presencial" && schedule.eventTime && (
+                <div className="flex flex-col items-center justify-center rounded-2xl bg-white p-3 border border-sky-200 shadow-sm">
+                  <span className="text-[11px] font-extrabold uppercase text-sky-900">🎟️ Hora Inicio Reunión:</span>
+                  <span className="font-display text-2xl text-sky-950">{schedule.eventTime}</span>
+                </div>
+              )}
+
+              {/* Show Live Reveal Time for BOTH Presencial and Remote Guests */}
+              <div
+                className={`flex flex-col items-center justify-center rounded-2xl bg-white p-3 border-2 border-amber-400 shadow-sm ${
+                  mode === "remota" || !schedule.eventTime ? "sm:col-span-2" : ""
+                }`}
+              >
+                <span className="text-[11px] font-extrabold uppercase text-amber-950">🔥 Hora Gran Revelación (En Vivo):</span>
+                <span className="font-display text-2xl text-amber-950 animate-pulse">{schedule.revealTime}</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2 rounded-3xl border-2 border-dashed border-amber-300 bg-amber-50/70 p-4 text-center">
+            <span className="text-2xl animate-bounce">⏳</span>
+            <span className="text-xs font-extrabold text-amber-950">
+              Hora de Revelación Pendiente por Confirmar
+            </span>
+            <p className="text-xs font-medium text-amber-900/90 leading-relaxed max-w-sm">
+              El Anfitrión aún no ha fijado la hora exacta de la revelación. Por favor mantente atento a esta pantalla o a las notificaciones para conocer la hora oficial.
+            </p>
+          </div>
+        )}
 
         {/* Remote Assistance & Nequi Section */}
         {mode === "remota" ? (

@@ -9,11 +9,13 @@ import {
   adminReset,
   adminStartReveal,
   computeTotals,
+  setEventSchedule,
+  subscribeEventSchedule,
   subscribeRSVPs,
   subscribeState,
   subscribeVotes,
 } from "@/lib/db";
-import type { AppState, RSVP, Team, VoteMap } from "@/lib/types";
+import type { AppState, EventSchedule, RSVP, Team, VoteMap } from "@/lib/types";
 import { COUNTDOWN_OPTIONS, DEFAULT_COUNTDOWN } from "@/lib/constants";
 import { ConnectionPill } from "@/components/shared/ConnectionPill";
 import { FullPageLoader } from "@/components/shared/FullPageLoader";
@@ -41,6 +43,13 @@ export function AdminPanel({
   const [pick, setPick] = useState<Team | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
+  // Schedule States
+  const [schedule, setSchedule] = useState<EventSchedule | null>(null);
+  const [eventDateInput, setEventDateInput] = useState("");
+  const [eventTimeInput, setEventTimeInput] = useState("");
+  const [revealTimeInput, setRevealTimeInput] = useState("");
+  const [savingSchedule, setSavingSchedule] = useState(false);
+
   // Modern UI feedback states
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -48,13 +57,37 @@ export function AdminPanel({
   useEffect(() => {
     const offState = subscribeState(setAppState);
     const offVotes = subscribeVotes(setVotes);
-    const offRSVPs = subscribeRSVPs(setRsvps);
+    const offRsvps = subscribeRSVPs(setRsvps);
+    const offSchedule = subscribeEventSchedule((sched) => {
+      setSchedule(sched);
+      if (sched) {
+        setEventDateInput(sched.eventDate || "");
+        setEventTimeInput(sched.eventTime || "");
+        setRevealTimeInput(sched.revealTime || "");
+      }
+    });
     return () => {
       offState();
       offVotes();
-      offRSVPs();
+      offRsvps();
+      offSchedule();
     };
   }, []);
+
+  const handleSaveSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (savingSchedule) return;
+    setSavingSchedule(true);
+    try {
+      await setEventSchedule(eventDateInput, eventTimeInput, revealTimeInput);
+      setToastMessage("🗓️ ¡Fecha y horas de la revelación guardadas con éxito!");
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
 
   const totals = useMemo(() => computeTotals(votes), [votes]);
 
@@ -154,6 +187,80 @@ export function AdminPanel({
           </p>
         </div>
       )}
+
+      {/* 🗓️ Programación de Fecha y Hora del Evento */}
+      <section className="rounded-3xl border-2 border-amber-300 bg-amber-50/90 p-5 shadow-lg backdrop-blur">
+        <div className="flex items-center justify-between border-b border-amber-200 pb-3">
+          <div>
+            <h2 className="flex items-center gap-2 font-display text-xl text-amber-950">
+              <span>🗓️</span> Programación de Fecha y Hora de Revelación
+            </h2>
+            <p className="text-xs font-semibold text-amber-900/90">
+              Asigna la hora oficial de la revelación para que se enlace automáticamente en las invitaciones presenciales y remotas.
+            </p>
+          </div>
+          {schedule?.updatedAt && (
+            <span className="rounded-full bg-emerald-200 px-3 py-1 text-xs font-black text-emerald-950 border border-emerald-300">
+              ✓ Programado
+            </span>
+          )}
+        </div>
+
+        <form onSubmit={handleSaveSchedule} className="mt-4 flex flex-col gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {/* Fecha del Evento */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-extrabold text-amber-950 uppercase tracking-wide">
+                🗓️ Fecha del Evento:
+              </label>
+              <input
+                type="text"
+                value={eventDateInput}
+                onChange={(e) => setEventDateInput(e.target.value)}
+                placeholder="Ej. Sábado, 24 de Agosto"
+                className="rounded-xl border border-amber-300 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-800 shadow-sm outline-none focus:border-amber-500"
+              />
+            </div>
+
+            {/* Hora de Inicio Presencial */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-extrabold text-amber-950 uppercase tracking-wide">
+                🎟️ Inicio Reunión (Presencial):
+              </label>
+              <input
+                type="text"
+                value={eventTimeInput}
+                onChange={(e) => setEventTimeInput(e.target.value)}
+                placeholder="Ej. 4:00 PM"
+                className="rounded-xl border border-amber-300 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-800 shadow-sm outline-none focus:border-amber-500"
+              />
+            </div>
+
+            {/* Hora de Revelación en Vivo */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-extrabold text-amber-950 uppercase tracking-wide">
+                🔥 Hora Gran Revelación (En Vivo):
+              </label>
+              <input
+                type="text"
+                value={revealTimeInput}
+                onChange={(e) => setRevealTimeInput(e.target.value)}
+                placeholder="Ej. 6:30 PM"
+                required
+                className="rounded-xl border-2 border-amber-400 bg-white px-3.5 py-2.5 text-xs font-black text-amber-950 shadow-sm outline-none focus:border-amber-600"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={savingSchedule}
+            className="w-full rounded-2xl bg-amber-600 py-3 font-extrabold text-white shadow-md transition hover:bg-amber-700 disabled:opacity-50"
+          >
+            {savingSchedule ? "Guardando Horarios…" : "💾 Guardar Horarios y Sincronizar Invitaciones"}
+          </button>
+        </form>
+      </section>
 
       {/* 1. Control de Votaciones y Dashboard Live */}
       <section className="rounded-3xl border-2 border-baby-blue-light bg-white/90 p-5 shadow-md backdrop-blur">

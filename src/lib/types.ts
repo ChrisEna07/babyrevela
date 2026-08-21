@@ -78,3 +78,10 @@ export interface HostConfig {
   setupToken?: string;
   updatedAt?: number;
 }
+
+export interface EventSchedule {
+  eventDate?: string;
+  eventTime?: string;
+  revealTime?: string;
+  updatedAt?: number;
+}

@@ -12,6 +12,7 @@ import { getRTDB } from "./firebase";
 import { sha256Hex } from "./hash";
 import type {
   AppState,
+  EventSchedule,
   HistoricalSession,
   RSVP,
   RSVPMap,
@@ -172,6 +173,27 @@ export async function validateSuperAdminCredentials(
   }
 
   return { valid: false, name: "", pinHash: "" };
+}
+
+export function subscribeEventSchedule(
+  callback: (schedule: EventSchedule | null) => void
+): Unsubscribe {
+  return onValue(ref(db(), "meta/eventSchedule"), (snap) => {
+    callback(snap.exists() ? snap.val() : null);
+  });
+}
+
+export async function setEventSchedule(
+  eventDate: string,
+  eventTime: string,
+  revealTime: string
+): Promise<void> {
+  await set(ref(db(), "meta/eventSchedule"), {
+    eventDate: eventDate.trim(),
+    eventTime: eventTime.trim(),
+    revealTime: revealTime.trim(),
+    updatedAt: Date.now(),
+  });
 }
 
 export async function getRevealer(): Promise<RevealerInfo | null> {
