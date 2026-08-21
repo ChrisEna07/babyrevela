@@ -21,15 +21,39 @@ export function RevealScreen({
   onToggleStats?: () => void;
 }) {
   const fired = useRef(false);
+  const isBoy = team === "boy";
+  const guessed = myTeam !== undefined && myTeam === team;
 
   useEffect(() => {
     if (fired.current) return;
     fired.current = true;
     fireRevealConfetti(team);
-  }, [team]);
 
-  const isBoy = team === "boy";
-  const guessed = myTeam !== undefined && myTeam === team;
+    // Play gender reveal celebration audio
+    try {
+      const songUrl = isBoy ? "/songreveal/Boysound.mp3" : "/songreveal/Grilsound.mp3";
+      const audio = new Audio(songUrl);
+      audio.volume = 0.95;
+      audio.play().catch((err) => {
+        console.log("Audio play blocked:", err);
+      });
+    } catch (e) {
+      console.error("Audio playback error:", e);
+    }
+
+    // Trigger Notification if tab is in background
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification(isBoy ? "¡ES UN NIÑO! 👦💙" : "¡ES UNA NIÑA! 👧💗", {
+          body: "¡El momento más esperado ha llegado! Toca aquí para ver la celebración en vivo.",
+          icon: isBoy ? "/gift/Its A Boy Baby GIF by Steve Harvey TV.gif" : "/gift/Girl Pink GIF by Shay Mitchell.gif",
+          tag: "baby-reveal-announcement",
+        });
+      } catch (e) {
+        console.error("Notification error:", e);
+      }
+    }
+  }, [team, isBoy]);
 
   return (
     <div

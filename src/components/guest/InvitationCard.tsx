@@ -22,6 +22,7 @@ export function InvitationCard() {
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [soundTested, setSoundTested] = useState(false);
+  const [notifTested, setNotifTested] = useState(false);
   const [nequiCopied, setNequiCopied] = useState(false);
   const [fullScreenImageOpen, setFullScreenImageOpen] = useState(false);
 
@@ -50,6 +51,29 @@ export function InvitationCard() {
       setSoundTested(true);
     } catch {
       setSoundTested(true);
+    }
+  };
+
+  const requestNotification = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      alert("Este navegador no soporta notificaciones.");
+      return;
+    }
+
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm === "granted") {
+        new Notification("🔔 Notificaciones Activadas - Baby Revela", {
+          body: "¡Listo! Te avisaremos con sonido cuando el anfitrión inicie la revelación de sexo en vivo.",
+          icon: "/icon-192.png",
+          tag: "guest-test-notification",
+        });
+        setNotifTested(true);
+      } else {
+        alert("Permiso de notificaciones no otorgado.");
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -192,16 +216,28 @@ export function InvitationCard() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={playTestChime}
-                className="mt-1 flex items-center justify-center gap-2 rounded-2xl border-2 border-purple-300 bg-white py-3 text-xs font-extrabold text-purple-900 shadow-sm transition hover:bg-purple-100"
-              >
-                <span>🔔</span>
-                {soundTested
-                  ? "✓ Sonido Verificado Exitosamente"
-                  : "Probar Alerta de Sonido y Volumen"}
-              </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={playTestChime}
+                  className="flex items-center justify-center gap-1.5 rounded-2xl border-2 border-purple-300 bg-white py-3 text-xs font-extrabold text-purple-950 shadow-sm transition hover:bg-purple-100"
+                >
+                  <span>🔊</span>
+                  {soundTested
+                    ? "✓ Sonido Verificado"
+                    : "Probar Alerta de Sonido"}
+                </button>
+                <button
+                  type="button"
+                  onClick={requestNotification}
+                  className="flex items-center justify-center gap-1.5 rounded-2xl border-2 border-purple-400 bg-purple-600 py-3 text-xs font-extrabold text-white shadow-sm transition hover:bg-purple-700"
+                >
+                  <span>🔔</span>
+                  {notifTested
+                    ? "✓ Notificación Enviada"
+                    : "Activar Notificaciones de Alerta"}
+                </button>
+              </div>
             </div>
 
             {/* Nequi Remote Gift Box */}
