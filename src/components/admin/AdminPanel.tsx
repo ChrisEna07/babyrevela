@@ -9,10 +9,11 @@ import {
   adminReset,
   adminStartReveal,
   computeTotals,
+  subscribeRSVPs,
   subscribeState,
   subscribeVotes,
 } from "@/lib/db";
-import type { AppState, Team, VoteMap } from "@/lib/types";
+import type { AppState, RSVP, Team, VoteMap } from "@/lib/types";
 import { COUNTDOWN_OPTIONS, DEFAULT_COUNTDOWN } from "@/lib/constants";
 import { ConnectionPill } from "@/components/shared/ConnectionPill";
 import { FullPageLoader } from "@/components/shared/FullPageLoader";
@@ -35,6 +36,7 @@ export function AdminPanel({
 }) {
   const [appState, setAppState] = useState<AppState | null>(null);
   const [votes, setVotes] = useState<VoteMap>({});
+  const [rsvps, setRsvps] = useState<RSVP[]>([]);
   const [duration, setDuration] = useState(DEFAULT_COUNTDOWN);
   const [pick, setPick] = useState<Team | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -46,9 +48,11 @@ export function AdminPanel({
   useEffect(() => {
     const offState = subscribeState(setAppState);
     const offVotes = subscribeVotes(setVotes);
+    const offRSVPs = subscribeRSVPs(setRsvps);
     return () => {
       offState();
       offVotes();
+      offRSVPs();
     };
   }, []);
 
@@ -176,6 +180,105 @@ export function AdminPanel({
             Avance de Votos en Tiempo Real
           </h3>
           <PercentageBar totals={totals} />
+        </div>
+      </section>
+
+      {/* Monitor de Invitados y Votación en Vivo */}
+      <section className="rounded-3xl border-2 border-indigo-200 bg-indigo-50/70 p-5 shadow-lg backdrop-blur">
+        <div className="flex items-center justify-between border-b border-indigo-100 pb-3">
+          <div>
+            <h2 className="flex items-center gap-2 font-display text-xl text-indigo-950">
+              <span>👥</span> Monitor de Votación de Invitados
+            </h2>
+            <p className="text-xs font-semibold text-indigo-800/90">
+              Visualiza en tiempo real quiénes ya votaron y quiénes faltan por votar antes de cerrar la votación.
+            </p>
+          </div>
+          <span className="rounded-full bg-indigo-200 px-3 py-1 text-xs font-black text-indigo-900">
+            {totals.total} {totals.total === 1 ? "Voto" : "Votos"} Registrados
+          </span>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {/* Lista de Votantes Confirmados */}
+            <div className="flex flex-col gap-2 rounded-2xl border border-emerald-200 bg-white p-3.5 shadow-sm">
+              <span className="text-xs font-extrabold text-emerald-900 flex items-center justify-between">
+                <span>🟢 Invitados que YA VOTARON</span>
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] text-emerald-800">
+                  {Object.values(votes).filter((v) => v && (v.team === "boy" || v.team === "girl")).length}
+                </span>
+              </span>
+              <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1 text-xs">
+                {Object.values(votes).filter((v) => v && (v.team === "boy" || v.team === "girl")).length === 0 ? (
+                  <p className="text-[11px] font-medium text-slate-400 italic py-2 text-center">
+                    Aún no hay votos registrados.
+                  </p>
+                ) : (
+                  Object.values(votes)
+                    .filter((v) => v && (v.team === "boy" || v.team === "girl"))
+                    .map((vote, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between rounded-xl bg-slate-50 px-2.5 py-1.5 border border-slate-100"
+                      >
+                        <span className="font-bold text-slate-800">{vote.name}</span>
+                        <span className="text-xs font-black flex items-center gap-1">
+                          {vote.team === "boy" ? "💙 Niño" : "💗 Niña"}
+                        </span>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
+
+            {/* Lista de RSVPs Registrados */}
+            <div className="flex flex-col gap-2 rounded-2xl border border-purple-200 bg-white p-3.5 shadow-sm">
+              <span className="text-xs font-extrabold text-purple-900 flex items-center justify-between">
+                <span>📩 RSVPs Confirmados ({rsvps.filter((r) => r.attending).length})</span>
+                <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] text-purple-800">
+                  Asistencia
+                </span>
+              </span>
+              <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1 text-xs">
+                {rsvps.filter((r) => r.attending).length === 0 ? (
+                  <p className="text-[11px] font-medium text-slate-400 italic py-2 text-center">
+                    No hay RSVPs confirmados registrados aún.
+                  </p>
+                ) : (
+                  rsvps
+                    .filter((r) => r.attending)
+                    .map((rsvp) => {
+                      const hasVoted = Object.values(votes).some(
+                        (v) => v && v.name.toLowerCase().trim() === rsvp.name.toLowerCase().trim()
+                      );
+                      return (
+                        <div
+                          key={rsvp.id}
+                          className="flex items-center justify-between rounded-xl bg-slate-50 px-2.5 py-1.5 border border-slate-100"
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-800">{rsvp.name}</span>
+                            <span className="text-[10px] font-medium text-slate-500">
+                              {rsvp.mode === "remota" ? "🌐 Asistencia Remota" : `🎟️ Presencial (${rsvp.guestsCount} pers.)`}
+                            </span>
+                          </div>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                              hasVoted
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                : "bg-amber-100 text-amber-800 border border-amber-200"
+                            }`}
+                          >
+                            {hasVoted ? "✓ Ya Votó" : "⏳ Pendiente"}
+                          </span>
+                        </div>
+                      );
+                    })
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

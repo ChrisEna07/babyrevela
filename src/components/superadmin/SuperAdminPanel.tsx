@@ -7,6 +7,7 @@ import {
   adminReset,
   computeTotals,
   createHostSetupLink,
+  getHostInfo,
   resetHostCredentials,
   setParentsNames,
   subscribeHistory,
@@ -29,6 +30,7 @@ import { ConnectionPill } from "@/components/shared/ConnectionPill";
 import { FullPageLoader } from "@/components/shared/FullPageLoader";
 import { PercentageBar } from "@/components/guest/PercentageBar";
 import { VoteTimeline } from "./VoteTimeline";
+import { RevelationSimulatorModal } from "./RevelationSimulatorModal";
 
 const TEAM_EMOJI: Record<Team, string> = { boy: "💙", girl: "💗" };
 const TEAM_LABEL: Record<Team, string> = { boy: "Niño", girl: "Niña" };
@@ -71,13 +73,23 @@ export function SuperAdminPanel({
 
   const [setupLink, setSetupLink] = useState<string | null>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
+  const [hostInfo, setHostInfo] = useState<{ hostName: string | null; pinHash: string | null } | null>(null);
 
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const [simulatorOpen, setSimulatorOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  const refreshHostInfo = () => {
+    getHostInfo().then(setHostInfo);
+  };
+
   useEffect(() => {
-    const offState = subscribeState(setAppState);
+    refreshHostInfo();
+    const offState = subscribeState((state) => {
+      setAppState(state);
+      refreshHostInfo();
+    });
     const offVotes = subscribeVotes(setVotes);
     const offLog = subscribeVoteLog(setLog);
     const offHistory = subscribeHistory(setHistory);
@@ -236,8 +248,37 @@ export function SuperAdminPanel({
             </span>
           </div>
           <p className="text-xs font-semibold text-emerald-800/90 leading-relaxed">
-            Genera un enlace privado único para que el anfitrión cree su propio usuario y PIN. Esto evita filtraciones o uso no autorizado de credenciales de eventos pasados.
+            Genera un enlace privado único para que el anfitrión cree su propio usuario y PIN. Una vez creado, el control del evento es <strong>100% exclusivo del Anfitrión</strong>.
           </p>
+
+          {/* Current Host Status Indicator */}
+          {hostInfo?.pinHash ? (
+            <div className="rounded-2xl border-2 border-emerald-300 bg-white p-3.5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-emerald-950 uppercase tracking-wide">
+                  ✅ Anfitrión Registrado:
+                </span>
+                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-black text-emerald-800">
+                  Acceso Privado Activo
+                </span>
+              </div>
+              <p className="font-display text-lg text-emerald-950 mt-1">
+                {hostInfo.hostName || "Anfitrión Asignado"} 🎤
+              </p>
+              <p className="text-xs font-medium text-slate-600 mt-1 leading-relaxed">
+                🔒 El Anfitrión ya ha configurado su usuario y PIN de 4 dígitos. El Súper Admin no puede acceder ni controlar el evento directamente para preservar la privacidad de las credenciales.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border-2 border-amber-300 bg-amber-100/60 p-3 text-center">
+              <span className="text-xs font-extrabold uppercase tracking-wide text-amber-900">
+                ⚠️ Ningún Anfitrión registrado actualmente
+              </span>
+              <p className="text-xs font-medium text-amber-800 mt-0.5">
+                Genera y envía el enlace seguro a continuación para que el Anfitrión cree su PIN.
+              </p>
+            </div>
+          )}
 
           {!setupLink ? (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 mt-1">
@@ -342,36 +383,94 @@ export function SuperAdminPanel({
             </div>
           </form>
 
-          {/* Botones de Envío Rápido de Invitación */}
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-200 bg-amber-50/80 p-3.5">
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-amber-900">
-                📲 Enlace Oficial de Invitación
+          {/* Botones de Envío Rápido de Invitaciones (Presencial vs Remota) */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* 1. Invitación Presencial */}
+            <div className="flex flex-col gap-2 rounded-2xl border-2 border-amber-300 bg-amber-50/90 p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-amber-950">
+                  🎟️ Invitación Presencial
+                </span>
+                <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+                  Con regalos / snacks
+                </span>
+              </div>
+              <span className="font-mono text-[11px] font-bold text-amber-900 break-all select-all">
+                {APP_DOMAIN}/invitacion?mode=presencial
               </span>
-              <span className="font-mono text-[11px] font-extrabold text-amber-800">
-                {APP_DOMAIN}/invitacion
-              </span>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${APP_DOMAIN}/invitacion?mode=presencial`);
+                    showToast("📋 Enlace presencial copiado.");
+                  }}
+                  className="flex-1 rounded-xl border border-amber-400 bg-white py-1.5 text-xs font-extrabold text-amber-950 hover:bg-amber-100 shadow-sm"
+                >
+                  📋 Copiar
+                </button>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(
+                    `¡Hola! 💌 ${parentsNamesInput} te invitan cordialmente al Baby Shower y Revelación de Sexo en vivo! 🎉\n\nPor favor confirma tu asistencia presencial e ingresa tu apodo aquí: ${APP_DOMAIN}/invitacion?mode=presencial`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 rounded-xl bg-emerald-600 py-1.5 text-center text-xs font-extrabold text-white hover:bg-emerald-700 shadow"
+                >
+                  📲 WhatsApp
+                </a>
+                <Link
+                  href="/invitacion?mode=presencial"
+                  target="_blank"
+                  className="rounded-xl border border-amber-300 bg-amber-200 px-3 py-1.5 text-xs font-extrabold text-amber-950 hover:bg-amber-300 shadow-sm"
+                >
+                  👁️ Previsualizar
+                </Link>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(`${APP_DOMAIN}/invitacion`);
-                  showToast("📋 Enlace de invitación copiado al portapapeles.");
-                }}
-                className="rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-xs font-extrabold text-amber-900 shadow-sm hover:bg-amber-100"
-              >
-                📋 Copiar Enlace
-              </button>
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(
-                  `¡Hola! 💌 ${parentsNamesInput} te invitan cordialmente al Baby Shower y Revelación de Sexo en vivo! 🎉\n\nPor favor confirma tu asistencia y tu predicción ingresando aquí: ${APP_DOMAIN}/invitacion`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-extrabold text-white shadow transition hover:bg-emerald-700"
-              >
-                📲 Compartir por WhatsApp
-              </a>
+
+            {/* 2. Invitación Remota / Virtual */}
+            <div className="flex flex-col gap-2 rounded-2xl border-2 border-purple-300 bg-purple-50/90 p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-purple-950">
+                  🌐 Invitación Remota / Exterior
+                </span>
+                <span className="rounded-full bg-purple-200 px-2 py-0.5 text-[10px] font-bold text-purple-900">
+                  100% Virtual
+                </span>
+              </div>
+              <span className="font-mono text-[11px] font-bold text-purple-900 break-all select-all">
+                {APP_DOMAIN}/invitacion?mode=remota
+              </span>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${APP_DOMAIN}/invitacion?mode=remota`);
+                    showToast("📋 Enlace remoto copiado.");
+                  }}
+                  className="flex-1 rounded-xl border border-purple-400 bg-white py-1.5 text-xs font-extrabold text-purple-950 hover:bg-purple-100 shadow-sm"
+                >
+                  📋 Copiar
+                </button>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(
+                    `¡Hola! 🌐 Aunque la distancia nos separe, ${parentsNamesInput} quieren que seas parte de la gran Revelación de Sexo en vivo desde tu celular o computadora! 👶✨\n\nPor favor confirma tu conexión remota aquí: ${APP_DOMAIN}/invitacion?mode=remota`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 rounded-xl bg-purple-600 py-1.5 text-center text-xs font-extrabold text-white hover:bg-purple-700 shadow"
+                >
+                  📲 WhatsApp
+                </a>
+                <Link
+                  href="/invitacion?mode=remota"
+                  target="_blank"
+                  className="rounded-xl border border-purple-300 bg-purple-200 px-3 py-1.5 text-xs font-extrabold text-purple-950 hover:bg-purple-300 shadow-sm"
+                >
+                  👁️ Previsualizar
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -624,6 +723,31 @@ export function SuperAdminPanel({
         )}
       </section>
 
+      {/* 🧪 Módulo de Pruebas y Simulador de Revelación */}
+      <section className="rounded-3xl border-2 border-purple-300 bg-purple-50/80 p-5 shadow-lg backdrop-blur">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-display text-xl text-purple-950">
+              <span>🧪</span> Módulo de Pruebas y Simulador de Revelación
+            </h2>
+            <span className="rounded-full bg-purple-200 px-3 py-0.5 text-xs font-black text-purple-900">
+              Sin Afectar el Evento Real
+            </span>
+          </div>
+          <p className="text-xs font-semibold text-purple-900/90 leading-relaxed">
+            Prueba de forma segura la cuenta regresiva, la explosión de confetti, la revelación animada y las notificaciones para verificar que todo funcione perfecto antes del inicio.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setSimulatorOpen(true)}
+            className="w-full rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 py-3.5 font-extrabold text-white shadow-md transition hover:shadow-xl"
+          >
+            🚀 Abrir Simulador de Revelación y Pruebas →
+          </button>
+        </div>
+      </section>
+
       <div className="flex flex-col gap-2 rounded-2xl border-2 border-slate-200 bg-white/90 p-4 text-center shadow-md">
         <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">
           Navegación entre Roles
@@ -643,6 +767,12 @@ export function SuperAdminPanel({
           </Link>
         </div>
       </div>
+
+      {/* Simulator Modal */}
+      <RevelationSimulatorModal
+        isOpen={simulatorOpen}
+        onClose={() => setSimulatorOpen(false)}
+      />
     </div>
   );
 }

@@ -63,6 +63,7 @@ export interface RSVP {
   name: string;
   attending: boolean;
   guestsCount: number;
+  mode?: "presencial" | "remota";
   message?: string;
   createdAt: number;
 }

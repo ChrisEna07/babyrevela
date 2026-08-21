@@ -3,8 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useState } from "react";
-import { getSuperAdmin } from "@/lib/db";
-import { sha256Hex } from "@/lib/hash";
+import { validateSuperAdminCredentials } from "@/lib/db";
 
 export function SuperAdminLogin({
   onSuccess,
@@ -23,14 +22,9 @@ export function SuperAdminLogin({
     setBusy(true);
     setError(false);
     try {
-      const hash = await sha256Hex(pin.trim());
-      const expected = await getSuperAdmin();
-      if (
-        expected &&
-        expected.pinHash === hash &&
-        expected.name.trim().toLowerCase() === name.trim().toLowerCase()
-      ) {
-        onSuccess(expected.name, hash);
+      const res = await validateSuperAdminCredentials(name, pin);
+      if (res.valid) {
+        onSuccess(res.name, res.pinHash);
       } else {
         setError(true);
       }

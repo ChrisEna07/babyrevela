@@ -202,31 +202,7 @@ export function NameEntry({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {/* Card Invitación */}
-          <Link
-            href="/invitacion"
-            className="flex flex-col justify-between rounded-2xl border-2 border-pink-200 bg-pink-50/50 p-4 shadow transition hover:-translate-y-0.5 hover:border-pink-400 hover:shadow-md"
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-2xl">💌</span>
-                <span className="rounded-full bg-pink-200 px-2.5 py-0.5 text-[10px] font-extrabold text-pink-800">
-                  RSVP
-                </span>
-              </div>
-              <h3 className="mt-2 font-extrabold text-slate-800 text-base">
-                Carta de Invitación
-              </h3>
-              <p className="mt-1 text-xs font-medium text-slate-600">
-                Ver tarjeta de invitación, guía de regalos y confirmar asistencia.
-              </p>
-            </div>
-            <span className="mt-4 block w-full rounded-xl bg-pink-600 py-2 text-center text-xs font-bold text-white shadow transition hover:bg-pink-700">
-              Ver Invitación →
-            </span>
-          </Link>
-
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {/* Card Anfitrión & Revelador */}
           <Link
             href="/admin"
@@ -267,7 +243,7 @@ export function NameEntry({
                 Súper Administración
               </h3>
               <p className="mt-1 text-xs font-medium text-slate-600">
-                Dashboard completo, RSVPs y enlace seguro para anfitrión.
+                Módulo de invitaciones, RSVPs, simulador de revelación y control total.
               </p>
             </div>
             <span className="mt-4 block w-full rounded-xl bg-purple-600 py-2 text-center text-xs font-bold text-white shadow transition hover:bg-purple-700">

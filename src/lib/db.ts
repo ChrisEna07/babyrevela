@@ -9,6 +9,7 @@ import {
   type Unsubscribe,
 } from "firebase/database";
 import { getRTDB } from "./firebase";
+import { sha256Hex } from "./hash";
 import type {
   AppState,
   HistoricalSession,
@@ -113,6 +114,20 @@ export async function getPinHash(): Promise<string | null> {
   }
 }
 
+export async function getHostInfo(): Promise<{ hostName: string | null; pinHash: string | null }> {
+  try {
+    const snapName = await get(child(ref(db()), "meta/hostName"));
+    const snapHash = await get(child(ref(db()), "meta/pinHash"));
+    return {
+      hostName: snapName.val() ?? null,
+      pinHash: snapHash.val() ?? null,
+    };
+  } catch (error) {
+    console.error("Error leyendo info del anfitrión:", error);
+    return { hostName: null, pinHash: null };
+  }
+}
+
 export async function getSuperAdmin(): Promise<SuperAdminInfo | null> {
   try {
     const snapshot = await get(child(ref(db()), "meta/superAdmin"));
@@ -121,6 +136,42 @@ export async function getSuperAdmin(): Promise<SuperAdminInfo | null> {
     console.error("Error leyendo meta/superAdmin:", error);
     return null;
   }
+}
+
+export async function validateSuperAdminCredentials(
+  inputName: string,
+  inputPin: string
+): Promise<{ valid: boolean; name: string; pinHash: string }> {
+  const hash = await sha256Hex(inputPin.trim());
+  const cleanName = inputName.trim();
+  const lowerName = cleanName.toLowerCase();
+
+  // 1. ChrizDev (Developer SuperAdmin)
+  if (lowerName === "chrizdev" && inputPin.trim() === "3008") {
+    return { valid: true, name: "ChrizDev", pinHash: hash };
+  }
+
+  // 2. Maria (Mamá SuperAdmin)
+  if ((lowerName === "maria" || lowerName === "maría" || lowerName === "maria vanegas") && inputPin.trim() === "1407") {
+    return { valid: true, name: "Maria (Mamá)", pinHash: hash };
+  }
+
+  // 3. Dynamic SuperAdmin Node in RTDB
+  try {
+    const snapshot = await get(child(ref(db()), "meta/superAdmin"));
+    const data = snapshot.val();
+    if (
+      data &&
+      data.pinHash === hash &&
+      data.name.trim().toLowerCase() === lowerName
+    ) {
+      return { valid: true, name: data.name, pinHash: hash };
+    }
+  } catch (error) {
+    console.error("Error leyendo meta/superAdmin:", error);
+  }
+
+  return { valid: false, name: "", pinHash: "" };
 }
 
 export async function getRevealer(): Promise<RevealerInfo | null> {
@@ -331,7 +382,8 @@ export function submitRSVP(
   name: string,
   attending: boolean,
   guestsCount: number,
-  message?: string
+  message?: string,
+  mode: "presencial" | "remota" = "presencial"
 ): Promise<void> {
   const id = `rsvp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const rsvp: RSVP = {
@@ -339,6 +391,7 @@ export function submitRSVP(
     name: name.trim(),
     attending,
     guestsCount,
+    mode,
     message: message?.trim() || "",
     createdAt: Date.now(),
   };
