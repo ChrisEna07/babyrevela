@@ -408,13 +408,18 @@ export function submitRSVP(
   mode: "presencial" | "remota" = "presencial"
 ): Promise<void> {
   const id = `rsvp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const cleanName = (name || "").trim();
+  const cleanMessage = (message || "").trim();
+  const validMode = mode === "remota" ? "remota" : "presencial";
+  const validGuestsCount = Number(guestsCount) > 0 ? Number(guestsCount) : 1;
+
   const rsvp: RSVP = {
     id,
-    name: name.trim(),
-    attending,
-    guestsCount,
-    mode,
-    message: message?.trim() || "",
+    name: cleanName || "Invitado Especial",
+    attending: Boolean(attending),
+    guestsCount: validGuestsCount,
+    mode: validMode,
+    message: cleanMessage,
     createdAt: Date.now(),
   };
   return set(ref(db(), `rsvps/${id}`), rsvp);

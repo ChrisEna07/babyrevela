@@ -10,6 +10,7 @@ import {
   getHostInfo,
   resetHostCredentials,
   setParentsNames,
+  subscribeEventSchedule,
   subscribeHistory,
   subscribeParentsNames,
   subscribeRSVPs,
@@ -19,6 +20,7 @@ import {
 } from "@/lib/db";
 import type {
   AppState,
+  EventSchedule,
   HistoricalSession,
   RSVP,
   Team,
@@ -69,6 +71,7 @@ export function SuperAdminPanel({
   const [history, setHistory] = useState<HistoricalSession[]>([]);
   const [rsvps, setRsvps] = useState<RSVP[]>([]);
   const [parentsNamesInput, setParentsNamesInput] = useState<string>("Mamá & Papá");
+  const [schedule, setSchedule] = useState<EventSchedule | null>(null);
   const [savingParents, setSavingParents] = useState(false);
 
   const [setupLink, setSetupLink] = useState<string | null>(null);
@@ -95,6 +98,7 @@ export function SuperAdminPanel({
     const offHistory = subscribeHistory(setHistory);
     const offRSVPs = subscribeRSVPs(setRsvps);
     const offParents = subscribeParentsNames(setParentsNamesInput);
+    const offSchedule = subscribeEventSchedule(setSchedule);
     return () => {
       offState();
       offVotes();
@@ -102,6 +106,7 @@ export function SuperAdminPanel({
       offHistory();
       offRSVPs();
       offParents();
+      offSchedule();
     };
   }, []);
 
@@ -383,6 +388,23 @@ export function SuperAdminPanel({
             </div>
           </form>
 
+          {/* Schedule Validation Banner */}
+          {schedule?.revealTime ? (
+            <div className="flex items-center gap-2 rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-xs font-bold text-emerald-950">
+              <span className="text-base">✅</span>
+              <div>
+                <strong>Horario Oficial Confirmado:</strong> {schedule.eventDate ? `${schedule.eventDate} · ` : ""}{schedule.eventTime ? `Inicio Reunión: ${schedule.eventTime} · ` : ""}<strong>Revelación: {schedule.revealTime}</strong>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 rounded-2xl border-2 border-amber-300 bg-amber-50 p-3 text-xs font-bold text-amber-950">
+              <span className="text-base">⚠️</span>
+              <div>
+                <strong>Atención (Horario Pendiente):</strong> El anfitrión aún no ha fijado la hora de la revelación en el Panel del Anfitrión (`/admin`). Los enlaces generarán la invitación, pero se recomienda definir la hora antes de enviar.
+              </div>
+            </div>
+          )}
+
           {/* Botones de Envío Rápido de Invitaciones (Presencial vs Remota) */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {/* 1. Invitación Presencial */}
@@ -403,7 +425,11 @@ export function SuperAdminPanel({
                   type="button"
                   onClick={() => {
                     navigator.clipboard.writeText(`${APP_DOMAIN}/invitacion?mode=presencial`);
-                    showToast("📋 Enlace presencial copiado.");
+                    showToast(
+                      schedule?.revealTime
+                        ? "📋 Enlace presencial copiado."
+                        : "⚠️ Copiado (Recuerda fijar la hora en el Panel del Anfitrión)."
+                    );
                   }}
                   className="flex-1 rounded-xl border border-amber-400 bg-white py-1.5 text-xs font-extrabold text-amber-950 hover:bg-amber-100 shadow-sm"
                 >
@@ -411,7 +437,13 @@ export function SuperAdminPanel({
                 </button>
                 <a
                   href={`https://wa.me/?text=${encodeURIComponent(
-                    `¡Hola! 💌 ${parentsNamesInput} te invitan cordialmente al Baby Shower y Revelación de Sexo en vivo! 🎉\n\nPor favor confirma tu asistencia presencial e ingresa tu apodo aquí: ${APP_DOMAIN}/invitacion?mode=presencial`
+                    `¡Hola! 💌 ${parentsNamesInput} te invitan cordialmente al Baby Shower y Revelación de Sexo en vivo! 🎉\n\n${
+                      schedule?.eventDate ? `🗓️ Fecha: ${schedule.eventDate}\n` : ""
+                    }${
+                      schedule?.eventTime ? `🎟️ Inicio Reunión: ${schedule.eventTime}\n` : ""
+                    }${
+                      schedule?.revealTime ? `🔥 Gran Revelación: ${schedule.revealTime}\n` : "⏳ Hora de Revelación: Por confirmar\n"
+                    }\nPor favor confirma tu asistencia presencial e ingresa tu apodo aquí: ${APP_DOMAIN}/invitacion?mode=presencial`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -447,7 +479,11 @@ export function SuperAdminPanel({
                   type="button"
                   onClick={() => {
                     navigator.clipboard.writeText(`${APP_DOMAIN}/invitacion?mode=remota`);
-                    showToast("📋 Enlace remoto copiado.");
+                    showToast(
+                      schedule?.revealTime
+                        ? "📋 Enlace remoto copiado."
+                        : "⚠️ Copiado (Recuerda fijar la hora en el Panel del Anfitrión)."
+                    );
                   }}
                   className="flex-1 rounded-xl border border-purple-400 bg-white py-1.5 text-xs font-extrabold text-purple-950 hover:bg-purple-100 shadow-sm"
                 >
@@ -455,7 +491,11 @@ export function SuperAdminPanel({
                 </button>
                 <a
                   href={`https://wa.me/?text=${encodeURIComponent(
-                    `¡Hola! 🌐 Aunque la distancia nos separe, ${parentsNamesInput} quieren que seas parte de la gran Revelación de Sexo en vivo desde tu celular o computadora! 👶✨\n\nPor favor confirma tu conexión remota aquí: ${APP_DOMAIN}/invitacion?mode=remota`
+                    `¡Hola! 🌐 Aunque la distancia nos separe, ${parentsNamesInput} quieren que seas parte de la gran Revelación de Sexo en vivo desde tu celular o computadora! 👶✨\n\n${
+                      schedule?.eventDate ? `🗓️ Fecha: ${schedule.eventDate}\n` : ""
+                    }${
+                      schedule?.revealTime ? `🔥 Hora Revelación en Vivo: ${schedule.revealTime}\n` : "⏳ Hora de Revelación: Por confirmar\n"
+                    }\nPor favor confirma tu conexión remota ingresando aquí: ${APP_DOMAIN}/invitacion?mode=remota`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
