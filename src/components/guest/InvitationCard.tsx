@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { likeRSVPMessage, submitRSVP, subscribeEventSchedule, subscribeParentsNames, subscribeRSVPs, updateRSVP } from "@/lib/db";
-import { EVENT_NAME, EVENT_TAGLINE } from "@/lib/constants";
-import type { EventSchedule, RSVP, Team } from "@/lib/types";
+import { EVENT_NAME, EVENT_TAGLINE, GUEST_KEY } from "@/lib/constants";
+import { createClientStore } from "@/lib/storage";
+import type { EventSchedule, RSVP, StoredGuest, Team } from "@/lib/types";
 import { EventCancellationBanner } from "@/components/shared/EventCancellationBanner";
 import { VideoRecorderModal } from "./VideoRecorderModal";
 
@@ -124,6 +125,7 @@ export function InvitationCard() {
     setErrorMsg("");
 
     try {
+      let finalRsvpId = existingRSVPId;
       if (existingRSVPId) {
         await updateRSVP(existingRSVPId, {
           name: name.trim(),
@@ -145,9 +147,16 @@ export function InvitationCard() {
           prediction || undefined,
           videoUrl
         );
+        finalRsvpId = created.id;
         setExistingRSVPId(created.id);
         localStorage.setItem("my_baby_rsvp_id", created.id);
       }
+
+      if (finalRsvpId) {
+        const guestStore = createClientStore<StoredGuest>(GUEST_KEY);
+        guestStore.set({ id: finalRsvpId, name: name.trim() });
+      }
+
       setSubmitted(true);
     } catch (err) {
       console.error(err);

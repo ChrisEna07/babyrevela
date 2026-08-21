@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
+import { GUEST_KEY } from "@/lib/constants";
 import { sendSupportMessage, subscribeSupportChats } from "@/lib/db";
 import type { SupportChatMessage } from "@/lib/types";
 
@@ -9,13 +10,14 @@ export function SupportChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [guestName, setGuestName] = useState(() => {
     if (typeof window === "undefined") return "";
-    const raw = localStorage.getItem("baby_reveal_guest");
-    if (!raw) return "";
-    try {
-      return JSON.parse(raw).name || "";
-    } catch {
-      return "";
+    const raw = localStorage.getItem(GUEST_KEY);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.name) return parsed.name;
+      } catch {}
     }
+    return "";
   });
 
   const [myChatIds, setMyChatIds] = useState<string[]>(() => {

@@ -75,6 +75,18 @@ export function GuestHome() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!guest && rsvps.length > 0 && typeof window !== "undefined") {
+      const myRsvpId = localStorage.getItem("my_baby_rsvp_id");
+      if (myRsvpId) {
+        const found = rsvps.find((r) => r.id === myRsvpId);
+        if (found) {
+          guestStore.set({ id: found.id, name: found.name });
+        }
+      }
+    }
+  }, [guest, rsvps]);
+
   const [localRevealKey, setLocalRevealKey] = useState<string | null>(null);
   const totals = useMemo(() => computeTotals(votes), [votes]);
   const myVote = guest ? votes[guest.id] : undefined;

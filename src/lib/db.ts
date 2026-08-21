@@ -705,11 +705,13 @@ export function sendSupportMessage(
   const msg: SupportChatMessage = {
     id,
     guestName: (guestName || "").trim() || "Invitado",
-    guestId,
     message: (message || "").trim(),
     status: "pending",
     createdAt: Date.now(),
   };
+  if (guestId) {
+    msg.guestId = guestId;
+  }
 
   return set(ref(db(), `supportChats/${id}`), msg).then(() => id);
 }

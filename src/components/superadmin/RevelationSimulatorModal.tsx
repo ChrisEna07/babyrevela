@@ -22,6 +22,7 @@ export function RevelationSimulatorModal({
   );
   const [notifTested, setNotifTested] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const drumRef = useRef<HTMLAudioElement | null>(null);
 
   const requestAndTestNotification = async () => {
     if (typeof window === "undefined" || !("Notification" in window)) {
@@ -51,12 +52,31 @@ export function RevelationSimulatorModal({
     setTestTeam(team);
     setCounter(10);
     setTestPhase("countdown");
+
+    // Start redoble audio loop
+    try {
+      if (drumRef.current) {
+        drumRef.current.pause();
+      }
+      const drum = new Audio("/songreveal/redoble.mp3");
+      drum.loop = true;
+      drum.play().catch((err) => console.log("Drum audio blocked:", err));
+      drumRef.current = drum;
+    } catch (e) {
+      console.error("Error playing redoble:", e);
+    }
   };
 
   useEffect(() => {
     if (testPhase !== "countdown") return;
 
     if (counter === 0) {
+      // Stop drum audio immediately when countdown completes
+      if (drumRef.current) {
+        drumRef.current.pause();
+        drumRef.current.currentTime = 0;
+      }
+
       const timer = setTimeout(() => {
         setTestPhase("revealed");
         const colorHex = testTeam === "boy" ? ["#a6d8f0", "#6fb3dd", "#ffffff"] : ["#ffd1e0", "#f5a3c3", "#ffffff"];
@@ -107,6 +127,10 @@ export function RevelationSimulatorModal({
   const handleClose = () => {
     if (audioRef.current) {
       audioRef.current.pause();
+    }
+    if (drumRef.current) {
+      drumRef.current.pause();
+      drumRef.current.currentTime = 0;
     }
     setTestPhase("idle");
     onClose();
