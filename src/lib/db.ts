@@ -22,6 +22,7 @@ import type {
   RSVPMap,
   RevealerInfo,
   SuperAdminInfo,
+  SupportChatMessage,
   Team,
   TenantInvite,
   Vote,
@@ -692,5 +693,45 @@ export function subscribeMasterAnalytics(
       totalVotes: votesCount,
       singleUseInvitesCount: invitesCount,
     });
+  });
+}
+
+export function sendSupportMessage(
+  guestName: string,
+  message: string,
+  guestId?: string
+): Promise<string> {
+  const id = `chat_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const msg: SupportChatMessage = {
+    id,
+    guestName: (guestName || "").trim() || "Invitado",
+    guestId,
+    message: (message || "").trim(),
+    status: "pending",
+    createdAt: Date.now(),
+  };
+
+  return set(ref(db(), `supportChats/${id}`), msg).then(() => id);
+}
+
+export function respondSupportMessage(
+  chatId: string,
+  responseText: string
+): Promise<void> {
+  return update(ref(db(), `supportChats/${chatId}`), {
+    response: (responseText || "").trim(),
+    status: "answered",
+    answeredAt: Date.now(),
+  });
+}
+
+export function subscribeSupportChats(
+  callback: (chats: SupportChatMessage[]) => void
+): Unsubscribe {
+  return onValue(ref(db(), "supportChats"), (snap) => {
+    if (!snap.exists()) return callback([]);
+    const raw = snap.val() as Record<string, SupportChatMessage>;
+    const list = Object.values(raw).sort((a, b) => b.createdAt - a.createdAt);
+    callback(list);
   });
 }

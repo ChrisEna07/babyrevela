@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   DEFAULT_LOCATION,
+  addRSVPComment,
   adminReset,
   computeTotals,
   createHostSetupLink,
@@ -12,6 +13,7 @@ import {
   getHostInfo,
   likeRSVPMessage,
   resetHostCredentials,
+  respondSupportMessage,
   setEventCancellation,
   setEventLocation,
   setParentsNames,
@@ -24,6 +26,7 @@ import {
   subscribeParentsNames,
   subscribeRSVPs,
   subscribeState,
+  subscribeSupportChats,
   subscribeTenantInvites,
   subscribeVoteLog,
   subscribeVotes,
@@ -34,6 +37,7 @@ import type {
   HistoricalSession,
   MasterAnalytics,
   RSVP,
+  SupportChatMessage,
   Team,
   TenantInvite,
   VoteLogEntry,
@@ -116,6 +120,13 @@ export function SuperAdminPanel({
   const [newSingleUseLink, setNewSingleUseLink] = useState<string | null>(null);
   const [generatingSingleUseLink, setGeneratingSingleUseLink] = useState(false);
 
+  // Support Chat & RSVP Comments State
+  const [supportChats, setSupportChats] = useState<SupportChatMessage[]>([]);
+  const [replyingChatId, setReplyingChatId] = useState<string | null>(null);
+  const [supportResponseText, setSupportResponseText] = useState("");
+  const [adminCommentRSVPId, setAdminCommentRSVPId] = useState<string | null>(null);
+  const [adminCommentText, setAdminCommentText] = useState("");
+
   const refreshHostInfo = () => {
     getHostInfo().then(setHostInfo);
   };
@@ -156,6 +167,7 @@ export function SuperAdminPanel({
     });
     const offAnalytics = subscribeMasterAnalytics(setMasterAnalytics);
     const offInvites = subscribeTenantInvites(setSingleUseInvites);
+    const offSupportChats = subscribeSupportChats(setSupportChats);
 
     return () => {
       offState();
@@ -169,8 +181,33 @@ export function SuperAdminPanel({
       offLoc();
       offAnalytics();
       offInvites();
+      offSupportChats();
     };
   }, []);
+
+  const handleSendAdminComment = async (rsvpId: string) => {
+    if (!adminCommentText.trim()) return;
+    try {
+      await addRSVPComment(rsvpId, adminCommentText.trim(), "Super Admin (ChrizDev)");
+      setAdminCommentText("");
+      setAdminCommentRSVPId(null);
+      showToast("💬 Comentario del Súper Admin añadido exitosamente.");
+    } catch {
+      showToast("❌ Error añadiendo comentario.");
+    }
+  };
+
+  const handleRespondSupportChat = async (chatId: string) => {
+    if (!supportResponseText.trim()) return;
+    try {
+      await respondSupportMessage(chatId, supportResponseText.trim());
+      setSupportResponseText("");
+      setReplyingChatId(null);
+      showToast("💬 Respuesta de soporte enviada en tiempo real al invitado.");
+    } catch {
+      showToast("❌ Error al responder chat.");
+    }
+  };
 
   const handleSaveLocation = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -735,9 +772,9 @@ export function SuperAdminPanel({
               Aún no hay confirmaciones de asistencia registradas. Comparte el enlace de la invitación para comenzar.
             </p>
           ) : (
-            <div className="max-h-60 overflow-y-auto divide-y divide-pink-100 rounded-2xl border border-pink-200 bg-white">
+            <div className="max-h-72 overflow-y-auto divide-y divide-pink-100 rounded-2xl border border-pink-200 bg-white">
               {rsvps.map((item) => (
-                <div key={item.id} className="flex flex-col gap-1 p-3 text-xs">
+                <div key={item.id} className="flex flex-col gap-1.5 p-3 text-xs">
                   <div className="flex items-center justify-between font-bold">
                     <span className="flex items-center gap-2 text-slate-800">
                       <span>{item.attending ? "✅ Asistirá" : "❌ No Asistirá"}</span>
@@ -752,17 +789,61 @@ export function SuperAdminPanel({
                       </span>
                     </span>
                   </div>
+
                   {item.message && (
                     <div className="flex items-center justify-between pl-6 text-slate-600">
                       <p className="italic">
                         &ldquo;{item.message}&rdquo;
                       </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => likeRSVPMessage(item.id)}
+                          className="flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-extrabold text-rose-600 border border-rose-200 hover:bg-rose-100 transition"
+                        >
+                          ❤️ {item.likes || 0}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAdminCommentRSVPId(adminCommentRSVPId === item.id ? null : item.id);
+                            setAdminCommentText("");
+                          }}
+                          className="rounded-full bg-purple-50 px-2.5 py-0.5 text-[11px] font-extrabold text-purple-700 border border-purple-200 hover:bg-purple-100 transition"
+                        >
+                          💬 Comentar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Render Comments Thread */}
+                  {item.comments && Object.keys(item.comments).length > 0 && (
+                    <div className="ml-6 mt-1 flex flex-col gap-1 rounded-xl bg-purple-50/60 p-2 border border-purple-100">
+                      {Object.values(item.comments).map((comm) => (
+                        <div key={comm.id} className="text-[11px]">
+                          <span className="font-extrabold text-purple-900">{comm.author}: </span>
+                          <span className="text-slate-700 font-medium">{comm.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Admin Comment Reply Input */}
+                  {adminCommentRSVPId === item.id && (
+                    <div className="ml-6 mt-1 flex items-center gap-2">
+                      <input
+                        value={adminCommentText}
+                        onChange={(e) => setAdminCommentText(e.target.value)}
+                        placeholder={`Comentar a ${item.name} como Super Admin...`}
+                        className="w-full rounded-xl border border-purple-300 bg-white px-3 py-1.5 text-xs text-slate-800 outline-none"
+                      />
                       <button
                         type="button"
-                        onClick={() => likeRSVPMessage(item.id)}
-                        className="flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-extrabold text-rose-600 border border-rose-200 hover:bg-rose-100 transition"
+                        onClick={() => handleSendAdminComment(item.id)}
+                        className="rounded-xl bg-purple-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-purple-700 transition shrink-0"
                       >
-                        ❤️ {item.likes || 0}
+                        Enviar
                       </button>
                     </div>
                   )}
@@ -771,6 +852,92 @@ export function SuperAdminPanel({
             </div>
           )}
         </div>
+      </section>
+
+      {/* 💬 Dudas / Chat de Soporte de Invitados (Tiempo Real) */}
+      <section className="rounded-3xl border-2 border-indigo-400 bg-gradient-to-br from-indigo-900 via-slate-900 to-purple-950 p-5 text-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-indigo-700/60 pb-3">
+          <div>
+            <h2 className="flex items-center gap-2 font-display text-xl text-indigo-300">
+              <span>💬</span> Chat de Soporte / Preguntas de Invitados en Tiempo Real
+            </h2>
+            <p className="text-xs font-semibold text-indigo-200/90">
+              Mensajes enviados por invitados desde la burbuja flotante para resolver dudas de ubicación, regalos u horarios.
+            </p>
+          </div>
+          <span className="rounded-full bg-indigo-500/20 px-3 py-1 text-xs font-black text-indigo-300 border border-indigo-400/40">
+            {supportChats.filter((c) => c.status === "pending").length} Sin Responder
+          </span>
+        </div>
+
+        {supportChats.length === 0 ? (
+          <p className="mt-4 rounded-2xl border border-dashed border-indigo-800 p-6 text-center text-xs font-medium text-indigo-300">
+            Aún no hay preguntas registradas de los invitados. Aparecerán aquí en tiempo real cuando escriban en la burbuja flotante.
+          </p>
+        ) : (
+          <div className="mt-4 flex flex-col gap-3">
+            {supportChats.map((c) => (
+              <div key={c.id} className="flex flex-col gap-2 rounded-2xl border border-indigo-700/80 bg-slate-950/80 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-indigo-300 flex items-center gap-2">
+                    <span>👤</span> {c.guestName}
+                  </span>
+                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black border ${
+                    c.status === "pending"
+                      ? "bg-amber-950/80 text-amber-300 border-amber-800 animate-pulse"
+                      : "bg-emerald-950/80 text-emerald-300 border-emerald-800"
+                  }`}>
+                    {c.status === "pending" ? "⏳ SIN RESPONDER" : "✅ RESPONDIDO"}
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-100 font-semibold italic bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
+                  &ldquo;{c.message}&rdquo;
+                </p>
+
+                {c.response ? (
+                  <div className="rounded-xl bg-emerald-950/90 p-2.5 text-xs text-emerald-200 border border-emerald-700">
+                    <span className="text-[10px] font-black uppercase text-emerald-400 block mb-0.5">
+                      👑 Tu Respuesta (Súper Admin):
+                    </span>
+                    <p className="font-medium">{c.response}</p>
+                  </div>
+                ) : (
+                  <div>
+                    {replyingChatId === c.id ? (
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          value={supportResponseText}
+                          onChange={(e) => setSupportResponseText(e.target.value)}
+                          placeholder="Escribe tu respuesta pública para el invitado..."
+                          className="w-full rounded-xl border border-indigo-600 bg-slate-900 px-3 py-2 text-xs text-white outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRespondSupportChat(c.id)}
+                          className="rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow hover:bg-emerald-700 transition shrink-0"
+                        >
+                          Enviar
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReplyingChatId(c.id);
+                          setSupportResponseText("");
+                        }}
+                        className="mt-1 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow hover:bg-indigo-700 transition self-start"
+                      >
+                        ✍️ Responder a {c.guestName}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* 📹 Galería de Videos de Invitados (Para Collage / TikTok) */}

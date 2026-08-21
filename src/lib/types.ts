@@ -140,3 +140,14 @@ export interface MasterAnalytics {
   totalVotes: number;
   singleUseInvitesCount: number;
 }
+
+export interface SupportChatMessage {
+  id: string;
+  guestName: string;
+  guestId?: string;
+  message: string;
+  response?: string;
+  status: "pending" | "answered";
+  createdAt: number;
+  answeredAt?: number;
+}

@@ -2,8 +2,8 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { castVote, computeTotals, subscribeState, subscribeVotes } from "@/lib/db";
-import type { AppState, StoredGuest, Team, VoteMap } from "@/lib/types";
+import { castVote, computeTotals, subscribeRSVPs, subscribeState, subscribeVotes } from "@/lib/db";
+import type { AppState, RSVP, StoredGuest, Team, VoteMap } from "@/lib/types";
 import { EVENT_NAME, GUEST_KEY } from "@/lib/constants";
 import { createClientStore } from "@/lib/storage";
 import { NameEntry } from "./NameEntry";
@@ -16,6 +16,7 @@ import { ConnectionPill } from "@/components/shared/ConnectionPill";
 import { FullPageLoader } from "@/components/shared/FullPageLoader";
 import { LocationModal } from "./LocationModal";
 import { EventCancellationBanner } from "@/components/shared/EventCancellationBanner";
+import { SupportChatWidget } from "@/components/shared/SupportChatWidget";
 
 const guestStore = createClientStore<StoredGuest>(GUEST_KEY);
 
@@ -58,6 +59,7 @@ export function GuestHome() {
   );
   const [appState, setAppState] = useState<AppState | null>(null);
   const [votes, setVotes] = useState<VoteMap>({});
+  const [rsvps, setRsvps] = useState<RSVP[]>([]);
   const [showingLanding, setShowingLanding] = useState(false);
   const [showStatsOnly, setShowStatsOnly] = useState(false);
   const [locationModalOpen, setLocationModalOpen] = useState(false);
@@ -65,15 +67,19 @@ export function GuestHome() {
   useEffect(() => {
     const offState = subscribeState(setAppState);
     const offVotes = subscribeVotes(setVotes);
+    const offRsvps = subscribeRSVPs(setRsvps);
     return () => {
       offState();
       offVotes();
+      offRsvps();
     };
   }, []);
 
   const [localRevealKey, setLocalRevealKey] = useState<string | null>(null);
   const totals = useMemo(() => computeTotals(votes), [votes]);
   const myVote = guest ? votes[guest.id] : undefined;
+
+  const videoRSVPs = useMemo(() => rsvps.filter((r) => r.videoUrl), [rsvps]);
 
   if (!guest || showingLanding) {
     return (
@@ -199,6 +205,50 @@ export function GuestHome() {
       )}
 
       {appState !== null && !showReveal && phase === "idle" && <WaitingScreen />}
+
+      {/* 🎬 Video Saludos de la Familia y Amigos en Landing */}
+      {videoRSVPs.length > 0 && (
+        <section className="w-full rounded-3xl border-2 border-pink-200 bg-gradient-to-br from-pink-50 via-purple-50 to-white p-5 shadow-lg">
+          <div className="flex items-center justify-between border-b border-pink-200 pb-3">
+            <h3 className="font-display text-lg text-pink-950 flex items-center gap-2">
+              <span>🎬</span> Video Saludos y Predicciones de la Familia
+            </h3>
+            <span className="rounded-full bg-pink-200 px-3 py-1 text-xs font-black text-pink-950">
+              {videoRSVPs.length} Videos
+            </span>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {videoRSVPs.map((v) => (
+              <div key={v.id} className="flex flex-col gap-2 rounded-2xl border border-pink-200 bg-white p-3 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800">{v.name}</span>
+                  {v.relationship && (
+                    <span className="rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-bold text-pink-900">
+                      {v.relationship}
+                    </span>
+                  )}
+                </div>
+
+                {v.prediction && (
+                  <span className={`text-[10px] font-black rounded px-2 py-0.5 self-start ${
+                    v.prediction === "boy" ? "bg-sky-100 text-sky-900" : "bg-pink-100 text-pink-900"
+                  }`}>
+                    🔮 Dice que será: {v.prediction === "boy" ? "👦 NIÑO" : "👧 NIÑA"}
+                  </span>
+                )}
+
+                <div className="overflow-hidden rounded-xl border border-slate-900 bg-black">
+                  <video src={v.videoUrl} controls className="max-h-48 w-full object-contain" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Floating Support Chat Widget */}
+      <SupportChatWidget />
     </div>
   );
 }

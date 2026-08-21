@@ -8,6 +8,7 @@ import { QRCodeCard } from "@/components/shared/QRCodeCard";
 import { BabyThoughts } from "./BabyThoughts";
 import { LocationModal } from "./LocationModal";
 import { EventCancellationBanner } from "@/components/shared/EventCancellationBanner";
+import { SupportChatWidget } from "@/components/shared/SupportChatWidget";
 
 export function NameEntry({
   onDone,
@@ -281,6 +282,9 @@ export function NameEntry({
           <span className="font-extrabold text-gold-dark">ChrizDev (Christian Romero)</span>
         </p>
       </footer>
+
+      {/* Floating Support Chat */}
+      <SupportChatWidget />
     </div>
   );
 }
