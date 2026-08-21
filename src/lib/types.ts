@@ -65,6 +65,7 @@ export interface RSVP {
   guestsCount: number;
   mode?: "presencial" | "remota";
   message?: string;
+  likes?: number;
   createdAt: number;
 }
 
@@ -83,5 +84,11 @@ export interface EventSchedule {
   eventDate?: string;
   eventTime?: string;
   revealTime?: string;
+  updatedAt?: number;
+}
+
+export interface EventCancellation {
+  status: "aplazado" | "cancelado" | "activo";
+  reason: string;
   updatedAt?: number;
 }

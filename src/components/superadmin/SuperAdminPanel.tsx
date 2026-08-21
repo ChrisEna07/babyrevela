@@ -8,8 +8,12 @@ import {
   computeTotals,
   createHostSetupLink,
   getHostInfo,
+  likeRSVPMessage,
   resetHostCredentials,
+  setEventCancellation,
   setParentsNames,
+  setSuperAdminSchedule,
+  subscribeEventCancellation,
   subscribeEventSchedule,
   subscribeHistory,
   subscribeParentsNames,
@@ -72,7 +76,14 @@ export function SuperAdminPanel({
   const [rsvps, setRsvps] = useState<RSVP[]>([]);
   const [parentsNamesInput, setParentsNamesInput] = useState<string>("Mamá & Papá");
   const [schedule, setSchedule] = useState<EventSchedule | null>(null);
+  const [eventDateInput, setEventDateInput] = useState("");
+  const [eventTimeInput, setEventTimeInput] = useState("");
   const [savingParents, setSavingParents] = useState(false);
+  const [savingSchedule, setSavingSchedule] = useState(false);
+
+  const [cancelStatus, setCancelStatus] = useState<"activo" | "aplazado" | "cancelado">("activo");
+  const [cancelReason, setCancelReason] = useState("");
+  const [savingCancellation, setSavingCancellation] = useState(false);
 
   const [setupLink, setSetupLink] = useState<string | null>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
@@ -98,7 +109,22 @@ export function SuperAdminPanel({
     const offHistory = subscribeHistory(setHistory);
     const offRSVPs = subscribeRSVPs(setRsvps);
     const offParents = subscribeParentsNames(setParentsNamesInput);
-    const offSchedule = subscribeEventSchedule(setSchedule);
+    const offSchedule = subscribeEventSchedule((sched) => {
+      setSchedule(sched);
+      if (sched) {
+        if (sched.eventDate) setEventDateInput(sched.eventDate);
+        if (sched.eventTime) setEventTimeInput(sched.eventTime);
+      }
+    });
+    const offCancel = subscribeEventCancellation((c) => {
+      if (c) {
+        setCancelStatus(c.status);
+        setCancelReason(c.reason || "");
+      } else {
+        setCancelStatus("activo");
+        setCancelReason("");
+      }
+    });
     return () => {
       offState();
       offVotes();
@@ -107,6 +133,7 @@ export function SuperAdminPanel({
       offRSVPs();
       offParents();
       offSchedule();
+      offCancel();
     };
   }, []);
 
@@ -161,6 +188,38 @@ export function SuperAdminPanel({
       showToast("Error al guardar los nombres de los padres.");
     } finally {
       setSavingParents(false);
+    }
+  };
+
+  const handleSaveSuperSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSchedule(true);
+    try {
+      await setSuperAdminSchedule(eventDateInput, eventTimeInput);
+      showToast("✓ Fecha y Hora de Inicio Presencial guardadas.");
+    } catch (err) {
+      console.error(err);
+      showToast("Error al guardar programación de reunión.");
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
+
+  const handleSaveCancellation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingCancellation(true);
+    try {
+      await setEventCancellation(cancelStatus, cancelReason);
+      showToast(
+        cancelStatus === "activo"
+          ? "✓ Estado del evento restablecido a Activo."
+          : `📢 Estado "${cancelStatus.toUpperCase()}" publicado para los invitados.`
+      );
+    } catch (err) {
+      console.error(err);
+      showToast("Error al cambiar estado del evento.");
+    } finally {
+      setSavingCancellation(false);
     }
   };
 
@@ -396,6 +455,53 @@ export function SuperAdminPanel({
             </div>
           </form>
 
+          {/* Formulario Súper Admin: Programación de Fecha y Hora de Inicio Reunión Presencial */}
+          <form onSubmit={handleSaveSuperSchedule} className="flex flex-col gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50/70 p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase text-amber-950 flex items-center gap-1.5">
+                <span>🗓️</span> Fecha y Hora de Inicio Reunión Presencial (Súper Admin)
+              </span>
+              <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+                Súper Admin
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="superEventDate" className="text-[11px] font-bold text-amber-950">
+                  🗓️ Fecha del Evento:
+                </label>
+                <input
+                  id="superEventDate"
+                  value={eventDateInput}
+                  onChange={(e) => setEventDateInput(e.target.value)}
+                  placeholder="Ej. Sábado, 24 de Agosto de 2026"
+                  className="rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label htmlFor="superEventTime" className="text-[11px] font-bold text-amber-950">
+                  🎟️ Hora Inicio Reunión Presencial:
+                </label>
+                <input
+                  id="superEventTime"
+                  value={eventTimeInput}
+                  onChange={(e) => setEventTimeInput(e.target.value)}
+                  placeholder="Ej. 4:00 PM"
+                  className="rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={savingSchedule}
+              className="mt-1 rounded-xl bg-amber-600 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-amber-700 disabled:opacity-50"
+            >
+              {savingSchedule ? "Guardando…" : "💾 Guardar Fecha y Hora de Inicio Presencial"}
+            </button>
+          </form>
+
           {/* Schedule Validation Banner */}
           {schedule?.revealTime ? (
             <div className="flex items-center gap-2 rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-xs font-bold text-emerald-950">
@@ -580,9 +686,18 @@ export function SuperAdminPanel({
                     </span>
                   </div>
                   {item.message && (
-                    <p className="pl-6 italic text-slate-600">
-                      &ldquo;{item.message}&rdquo;
-                    </p>
+                    <div className="flex items-center justify-between pl-6 text-slate-600">
+                      <p className="italic">
+                        &ldquo;{item.message}&rdquo;
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => likeRSVPMessage(item.id)}
+                        className="flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-extrabold text-rose-600 border border-rose-200 hover:bg-rose-100 transition"
+                      >
+                        ❤️ {item.likes || 0}
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -593,7 +708,7 @@ export function SuperAdminPanel({
 
       {/* Control Total: Restablecer Evento */}
       <section className="rounded-3xl border-2 border-purple-200 bg-purple-50/70 p-5 shadow-lg backdrop-blur">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4">
           <div>
             <h2 className="flex items-center gap-2 font-display text-xl text-purple-900">
               <span>👑</span> Control Total del Evento
@@ -602,12 +717,73 @@ export function SuperAdminPanel({
               Archiva los votos actuales en el historial y reinicia la app para una nueva sesión limpia.
             </p>
           </div>
-          <button
-            onClick={() => setConfirmResetOpen(true)}
-            className="rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-lg transition hover:shadow-xl hover:opacity-95 shrink-0"
-          >
-            🔄 Restablecer y Archivar Evento
-          </button>
+
+          {/* Módulo de Cancelación o Aplazamiento de Evento */}
+          <form onSubmit={handleSaveCancellation} className="flex flex-col gap-3 rounded-2xl border-2 border-rose-300 bg-rose-50/80 p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase text-rose-950 flex items-center gap-1.5">
+                <span>📢</span> Anuncio / Cancelación / Aplazamiento de Evento
+              </span>
+              <span className="rounded-full bg-rose-200 px-2 py-0.5 text-[10px] font-bold text-rose-900">
+                Notificación a Invitados
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-bold text-rose-950">
+                  Estado del Evento:
+                </label>
+                <select
+                  value={cancelStatus}
+                  onChange={(e) => setCancelStatus(e.target.value as "activo" | "aplazado" | "cancelado")}
+                  className="rounded-xl border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-rose-500"
+                >
+                  <option value="activo">🟢 Normal / Activo (Sin cambios)</option>
+                  <option value="aplazado">⏳ Aplazado (Postergado)</option>
+                  <option value="cancelado">🚫 Cancelado</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-bold text-rose-950">
+                  Motivo / Mensaje para los Invitados:
+                </label>
+                <input
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Ej. Tuvimos un inconveniente climático y aplazamos el evento para el próximo fin de semana"
+                  className="rounded-xl border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-rose-500"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={savingCancellation}
+              className="mt-1 rounded-xl bg-rose-600 py-2.5 text-xs font-extrabold text-white shadow transition hover:bg-rose-700 disabled:opacity-50"
+            >
+              {savingCancellation ? "Publicando…" : "📢 Informar Estado a Todos los Invitados"}
+            </button>
+          </form>
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border-2 border-rose-300 bg-rose-50/70 p-4">
+            <div>
+              <span className="text-xs font-black uppercase text-rose-950">
+                ⚠️ Restablecimiento Total de Evento e Invitados
+              </span>
+              <p className="text-[11px] font-semibold text-rose-900/90">
+                Borra la lista completa de invitados, votos, mensajes y reinicia la plataforma a cero.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setConfirmResetOpen(true)}
+              className="rounded-2xl bg-gradient-to-r from-rose-600 to-red-700 px-5 py-3 text-xs font-black text-white shadow-lg transition hover:shadow-xl hover:opacity-95 shrink-0"
+            >
+              🔄 Restablecer Todo y Borrar Invitados
+            </button>
+          </div>
         </div>
       </section>
 
@@ -618,7 +794,7 @@ export function SuperAdminPanel({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
             onClick={() => setConfirmResetOpen(false)}
           >
             <motion.div
@@ -626,29 +802,33 @@ export function SuperAdminPanel({
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="flex w-full max-w-md flex-col gap-4 rounded-3xl border-2 border-purple-300 bg-white p-6 text-center shadow-2xl"
+              className="flex w-full max-w-md flex-col gap-4 rounded-3xl border-4 border-rose-500 bg-white p-6 text-center shadow-2xl"
             >
-              <span className="text-4xl">👑</span>
-              <h3 className="font-display text-2xl text-purple-900">
-                ¿Restablecer y Archivar Sesión?
+              <span className="text-4xl animate-bounce">🚨</span>
+              <h3 className="font-display text-2xl text-rose-950">
+                ¿Confirmas el Borrado TOTAL del Evento e Invitados?
               </h3>
-              <p className="text-xs font-semibold leading-relaxed text-slate-600">
-                Se guardará un registro de los resultados y votos de esta sesión en el <strong>Historial de Eventos Anteriores</strong> y se dejará la app en blanco para el próximo evento.
-              </p>
+              <div className="rounded-2xl bg-rose-50 p-4 border border-rose-200 text-left text-xs font-semibold text-rose-900 space-y-1.5">
+                <p className="font-black text-rose-950">⚠️ Esta acción eliminará permanentemente:</p>
+                <p>• 🗑️ <strong>Toda la lista de invitados confirmados (RSVPs y mensajes).</strong></p>
+                <p>• 🗳️ <strong>Todos los votos y registros acumulados.</strong></p>
+                <p>• 📊 <strong>El estado actual y mensajes de anuncios.</strong></p>
+                <p className="pt-1 text-slate-700">La aplicación volverá a quedar 100% limpia para empezar de cero.</p>
+              </div>
               <div className="flex gap-3 pt-2">
                 <button
                   disabled={isResetting}
                   onClick={() => setConfirmResetOpen(false)}
-                  className="flex-1 rounded-2xl bg-slate-100 py-3 font-bold text-slate-700 transition hover:bg-slate-200"
+                  className="flex-1 rounded-2xl bg-slate-100 py-3 text-xs font-extrabold text-slate-700 transition hover:bg-slate-200"
                 >
                   Cancelar
                 </button>
                 <button
                   disabled={isResetting}
                   onClick={handleSuperReset}
-                  className="flex-1 rounded-2xl bg-purple-600 py-3 font-bold text-white shadow transition hover:bg-purple-700 disabled:opacity-50"
+                  className="flex-1 rounded-2xl bg-rose-600 py-3 text-xs font-black text-white shadow transition hover:bg-rose-700 disabled:opacity-50"
                 >
-                  {isResetting ? "Archivando…" : "Sí, Restablecer"}
+                  {isResetting ? "Borrando todo…" : "🔥 Sí, Restablecer Todo y Borrar Invitados"}
                 </button>
               </div>
             </motion.div>

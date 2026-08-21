@@ -15,6 +15,7 @@ import { BabyThoughts } from "./BabyThoughts";
 import { ConnectionPill } from "@/components/shared/ConnectionPill";
 import { FullPageLoader } from "@/components/shared/FullPageLoader";
 import { LocationModal } from "./LocationModal";
+import { EventCancellationBanner } from "@/components/shared/EventCancellationBanner";
 
 const guestStore = createClientStore<StoredGuest>(GUEST_KEY);
 
@@ -95,6 +96,9 @@ export function GuestHome() {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center justify-center gap-8 px-4 py-10">
+      {/* Event Cancellation / Postponement Banner */}
+      <EventCancellationBanner />
+
       {/* Location Modal */}
       <LocationModal
         isOpen={locationModalOpen}

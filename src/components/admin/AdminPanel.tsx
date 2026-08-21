@@ -9,13 +9,15 @@ import {
   adminReset,
   adminStartReveal,
   computeTotals,
-  setEventSchedule,
+  setEventCancellation,
+  setHostRevealTime,
+  subscribeEventCancellation,
   subscribeEventSchedule,
   subscribeRSVPs,
   subscribeState,
   subscribeVotes,
 } from "@/lib/db";
-import type { AppState, EventSchedule, RSVP, Team, VoteMap } from "@/lib/types";
+import type { AppState, EventCancellation, EventSchedule, RSVP, Team, VoteMap } from "@/lib/types";
 import { COUNTDOWN_OPTIONS, DEFAULT_COUNTDOWN } from "@/lib/constants";
 import { ConnectionPill } from "@/components/shared/ConnectionPill";
 import { FullPageLoader } from "@/components/shared/FullPageLoader";
@@ -45,10 +47,14 @@ export function AdminPanel({
 
   // Schedule States
   const [schedule, setSchedule] = useState<EventSchedule | null>(null);
-  const [eventDateInput, setEventDateInput] = useState("");
-  const [eventTimeInput, setEventTimeInput] = useState("");
   const [revealTimeInput, setRevealTimeInput] = useState("");
   const [savingSchedule, setSavingSchedule] = useState(false);
+
+  // Cancellation States
+  const [cancellation, setCancellation] = useState<EventCancellation | null>(null);
+  const [cancelStatus, setCancelStatus] = useState<"activo" | "aplazado" | "cancelado">("activo");
+  const [cancelReason, setCancelReason] = useState("");
+  const [savingCancellation, setSavingCancellation] = useState(false);
 
   // Modern UI feedback states
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
@@ -60,10 +66,18 @@ export function AdminPanel({
     const offRsvps = subscribeRSVPs(setRsvps);
     const offSchedule = subscribeEventSchedule((sched) => {
       setSchedule(sched);
-      if (sched) {
-        setEventDateInput(sched.eventDate || "");
-        setEventTimeInput(sched.eventTime || "");
-        setRevealTimeInput(sched.revealTime || "");
+      if (sched?.revealTime) {
+        setRevealTimeInput(sched.revealTime);
+      }
+    });
+    const offCancel = subscribeEventCancellation((c) => {
+      setCancellation(c);
+      if (c) {
+        setCancelStatus(c.status);
+        setCancelReason(c.reason || "");
+      } else {
+        setCancelStatus("activo");
+        setCancelReason("");
       }
     });
     return () => {
@@ -71,21 +85,44 @@ export function AdminPanel({
       offVotes();
       offRsvps();
       offSchedule();
+      offCancel();
     };
   }, []);
 
   const handleSaveSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (savingSchedule) return;
+    if (savingSchedule || !revealTimeInput.trim()) return;
     setSavingSchedule(true);
     try {
-      await setEventSchedule(eventDateInput, eventTimeInput, revealTimeInput);
-      setToastMessage("🗓️ ¡Fecha y horas de la revelación guardadas con éxito!");
+      await setHostRevealTime(revealTimeInput);
+      setToastMessage("🔥 ¡Hora de la revelación guardada y sincronizada!");
       setTimeout(() => setToastMessage(null), 3000);
     } catch (err) {
       console.error(err);
+      setToastMessage("Error al guardar la hora de la revelación.");
+      setTimeout(() => setToastMessage(null), 3000);
     } finally {
       setSavingSchedule(false);
+    }
+  };
+
+  const handleSaveCancellation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingCancellation(true);
+    try {
+      await setEventCancellation(cancelStatus, cancelReason);
+      setToastMessage(
+        cancelStatus === "activo"
+          ? "✓ Estado del evento restablecido a Activo."
+          : `📢 Estado "${cancelStatus.toUpperCase()}" informado a los invitados.`
+      );
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err) {
+      console.error(err);
+      setToastMessage("Error al publicar estado del evento.");
+      setTimeout(() => setToastMessage(null), 3000);
+    } finally {
+      setSavingCancellation(false);
     }
   };
 
@@ -140,24 +177,11 @@ export function AdminPanel({
         )}
       </AnimatePresence>
 
-      <header className="flex flex-wrap items-center justify-between gap-3">
+      <header className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl text-gold-dark">Panel del Anfitrión / Revelador</h1>
-          <p className="flex items-center gap-2 text-sm font-semibold text-ink-soft">
-            Estado actual:
-            <span
-              className={`rounded-full px-3 py-0.5 text-xs font-bold ${
-                isRevealed
-                  ? "bg-gold-light text-gold-dark"
-                  : isVoting
-                    ? "bg-emerald-100 text-emerald-700"
-                    : isCountdown
-                      ? "bg-baby-blue-light text-baby-blue-dark"
-                      : "bg-baby-pink-light text-baby-pink-dark"
-              }`}
-            >
-              {PHASE_LABELS[appState.phase]}
-            </span>
+          <h1 className="font-display text-3xl text-gold-dark">Panel de anfitrión</h1>
+          <p className="text-sm font-semibold text-ink-soft">
+            Control de votaciones y revelación en vivo
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -171,12 +195,43 @@ export function AdminPanel({
         </div>
       </header>
 
+      {/* State Badge Banner */}
+      <section className="flex flex-col gap-2 rounded-3xl border-2 border-amber-200 bg-white/80 p-5 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <span className="text-xs font-bold text-ink-soft uppercase tracking-wider">
+            Estado Actual del Evento:
+          </span>
+          <p className="font-display text-2xl text-gold-dark font-extrabold">
+            {PHASE_LABELS[appState.phase]}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {isVoting && (
+            <span className="rounded-full bg-emerald-100 px-3.5 py-1 text-xs font-extrabold text-emerald-800 animate-pulse border border-emerald-300">
+              🟢 Votación Activa
+            </span>
+          )}
+          {isCountdown && (
+            <span className="rounded-full bg-amber-100 px-3.5 py-1 text-xs font-extrabold text-amber-800 animate-bounce border border-amber-300">
+              ⏳ Conteo en Progreso
+            </span>
+          )}
+          {isRevealed && (
+            <span className="rounded-full bg-purple-100 px-3.5 py-1 text-xs font-extrabold text-purple-800 border border-purple-300">
+              🎉 Evento Revelado
+            </span>
+          )}
+        </div>
+      </section>
+
+      {/* Dynamic Status Feedback Cards */}
       {isRevealed && (
         <div
-          className={`rounded-3xl border-4 p-6 text-center text-white shadow-lg ${
+          className={`rounded-3xl p-6 text-center shadow-xl text-white ${
             appState.revealChoice === "boy"
-              ? "border-white bg-gradient-to-r from-baby-blue to-baby-blue-dark"
-              : "border-white bg-gradient-to-r from-baby-pink to-baby-pink-dark"
+              ? "bg-gradient-to-r from-sky-500 to-indigo-600"
+              : "bg-gradient-to-r from-pink-500 to-purple-600"
           }`}
         >
           <p className="font-display text-3xl">
@@ -188,68 +243,49 @@ export function AdminPanel({
         </div>
       )}
 
-      {/* 🗓️ Programación de Fecha y Hora del Evento */}
+      {/* 🗓️ Programación de Hora de Revelación (Anfitrión) */}
       <section className="rounded-3xl border-2 border-amber-300 bg-amber-50/90 p-5 shadow-lg backdrop-blur">
         <div className="flex items-center justify-between border-b border-amber-200 pb-3">
           <div>
             <h2 className="flex items-center gap-2 font-display text-xl text-amber-950">
-              <span>🗓️</span> Programación de Fecha y Hora de Revelación
+              <span>🔥</span> Hora de Inicio de la Revelación en Vivo (Anfitrión)
             </h2>
             <p className="text-xs font-semibold text-amber-900/90">
-              Asigna la hora oficial de la revelación para que se enlace automáticamente en las invitaciones presenciales y remotas.
+              Asigna la hora exacta en que iniciarás la revelación. La fecha y hora de la reunión presencial son administradas por el Súper Admin.
             </p>
           </div>
-          {schedule?.updatedAt && (
+          {schedule?.revealTime && (
             <span className="rounded-full bg-emerald-200 px-3 py-1 text-xs font-black text-emerald-950 border border-emerald-300">
-              ✓ Programado
+              ✓ Hora Fijada: {schedule.revealTime}
             </span>
           )}
         </div>
 
+        {/* Info Tags from Super Admin */}
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 text-xs font-semibold">
+          <div className="flex items-center gap-2 rounded-xl bg-white p-2.5 border border-amber-200 shadow-sm">
+            <span>🗓️ Fecha Evento (Súper Admin):</span>
+            <strong className="text-amber-950">{schedule?.eventDate || "Pendiente por Súper Admin"}</strong>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl bg-white p-2.5 border border-amber-200 shadow-sm">
+            <span>🎟️ Inicio Reunión (Súper Admin):</span>
+            <strong className="text-amber-950">{schedule?.eventTime || "Pendiente por Súper Admin"}</strong>
+          </div>
+        </div>
+
         <form onSubmit={handleSaveSchedule} className="mt-4 flex flex-col gap-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {/* Fecha del Evento */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-extrabold text-amber-950 uppercase tracking-wide">
-                🗓️ Fecha del Evento:
-              </label>
-              <input
-                type="text"
-                value={eventDateInput}
-                onChange={(e) => setEventDateInput(e.target.value)}
-                placeholder="Ej. Sábado, 24 de Agosto"
-                className="rounded-xl border border-amber-300 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-800 shadow-sm outline-none focus:border-amber-500"
-              />
-            </div>
-
-            {/* Hora de Inicio Presencial */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-extrabold text-amber-950 uppercase tracking-wide">
-                🎟️ Inicio Reunión (Presencial):
-              </label>
-              <input
-                type="text"
-                value={eventTimeInput}
-                onChange={(e) => setEventTimeInput(e.target.value)}
-                placeholder="Ej. 4:00 PM"
-                className="rounded-xl border border-amber-300 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-800 shadow-sm outline-none focus:border-amber-500"
-              />
-            </div>
-
-            {/* Hora de Revelación en Vivo */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-extrabold text-amber-950 uppercase tracking-wide">
-                🔥 Hora Gran Revelación (En Vivo):
-              </label>
-              <input
-                type="text"
-                value={revealTimeInput}
-                onChange={(e) => setRevealTimeInput(e.target.value)}
-                placeholder="Ej. 6:30 PM"
-                required
-                className="rounded-xl border-2 border-amber-400 bg-white px-3.5 py-2.5 text-xs font-black text-amber-950 shadow-sm outline-none focus:border-amber-600"
-              />
-            </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-extrabold text-amber-950 uppercase tracking-wide">
+              🔥 Hora de Inicio de la Revelación de Sexo (En Vivo):
+            </label>
+            <input
+              type="text"
+              value={revealTimeInput}
+              onChange={(e) => setRevealTimeInput(e.target.value)}
+              placeholder="Ej. 6:30 PM"
+              required
+              className="w-full rounded-2xl border-2 border-amber-400 bg-white px-4 py-3 text-sm font-black text-amber-950 shadow-sm outline-none focus:border-amber-600"
+            />
           </div>
 
           <button
@@ -257,7 +293,66 @@ export function AdminPanel({
             disabled={savingSchedule}
             className="w-full rounded-2xl bg-amber-600 py-3 font-extrabold text-white shadow-md transition hover:bg-amber-700 disabled:opacity-50"
           >
-            {savingSchedule ? "Guardando Horarios…" : "💾 Guardar Horarios y Sincronizar Invitaciones"}
+            {savingSchedule ? "Guardando Hora…" : "💾 Guardar Hora de Revelación y Sincronizar Invitaciones"}
+          </button>
+        </form>
+      </section>
+
+      {/* 📢 Módulo de Aplazamiento o Cancelación del Evento */}
+      <section className="rounded-3xl border-2 border-rose-300 bg-rose-50/90 p-5 shadow-lg backdrop-blur">
+        <div className="flex items-center justify-between border-b border-rose-200 pb-3">
+          <div>
+            <h2 className="flex items-center gap-2 font-display text-xl text-rose-950">
+              <span>🚨</span> Aplazar o Cancelar Evento (Comunicado a Invitados)
+            </h2>
+            <p className="text-xs font-semibold text-rose-900/90">
+              Si requieres aplazar o cancelar la fecha u hora, publica un aviso oficial que aparecerá de inmediato en la pantalla de todos los invitados.
+            </p>
+          </div>
+          {cancellation?.status && cancellation.status !== "activo" && (
+            <span className="rounded-full bg-rose-200 px-3 py-1 text-xs font-black text-rose-950 border border-rose-300 uppercase">
+              {cancellation.status}
+            </span>
+          )}
+        </div>
+
+        <form onSubmit={handleSaveCancellation} className="mt-4 flex flex-col gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-extrabold text-rose-950 uppercase tracking-wide">
+                Estado del Evento:
+              </label>
+              <select
+                value={cancelStatus}
+                onChange={(e) => setCancelStatus(e.target.value as "activo" | "aplazado" | "cancelado")}
+                className="rounded-xl border border-rose-300 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-800 shadow-sm outline-none focus:border-rose-500"
+              >
+                <option value="activo">🟢 Normal / Activo (Sin cambios)</option>
+                <option value="aplazado">⏳ Aplazado (Postergado)</option>
+                <option value="cancelado">🚫 Cancelado</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-extrabold text-rose-950 uppercase tracking-wide">
+                Motivo / Comunicado Oficial:
+              </label>
+              <input
+                type="text"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Ej. Aplazado por motivos de fuerza mayor"
+                className="rounded-xl border border-rose-300 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-800 shadow-sm outline-none focus:border-rose-500"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={savingCancellation}
+            className="w-full rounded-2xl bg-rose-600 py-3 font-extrabold text-white shadow-md transition hover:bg-rose-700 disabled:opacity-50"
+          >
+            {savingCancellation ? "Publicando Aviso…" : "📢 Informar Estado a Todos los Invitados"}
           </button>
         </form>
       </section>
@@ -497,27 +592,31 @@ export function AdminPanel({
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="flex w-full max-w-sm flex-col gap-4 rounded-3xl border-2 border-red-200 bg-white p-6 shadow-2xl text-center"
+              className="flex w-full max-w-md flex-col gap-4 rounded-3xl border-4 border-rose-500 bg-white p-6 text-center shadow-2xl"
             >
-              <span className="text-4xl">⚠️</span>
-              <h3 className="font-display text-2xl text-red-600">
-                ¿Restablecer evento?
+              <span className="text-4xl animate-bounce">🚨</span>
+              <h3 className="font-display text-2xl text-rose-950">
+                ¿Confirmas el Borrado TOTAL del Evento e Invitados?
               </h3>
-              <p className="text-xs font-semibold text-slate-600">
-                Esta acción colocará la app en estado inicial y eliminará todos los votos de los invitados para permitir un nuevo inicio limpio.
-              </p>
-              <div className="flex gap-3">
+              <div className="rounded-2xl bg-rose-50 p-4 border border-rose-200 text-left text-xs font-semibold text-rose-900 space-y-1.5">
+                <p className="font-black text-rose-950">⚠️ Esta acción eliminará permanentemente:</p>
+                <p>• 🗑️ <strong>Toda la lista de invitados confirmados (RSVPs y mensajes).</strong></p>
+                <p>• 🗳️ <strong>Todos los votos y registros acumulados.</strong></p>
+                <p>• 📊 <strong>El estado actual y avisos de cancelación/aplazamiento.</strong></p>
+                <p className="pt-1 text-slate-700">La aplicación volverá a quedar 100% limpia para empezar de cero.</p>
+              </div>
+              <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => setConfirmResetOpen(false)}
-                  className="flex-1 rounded-2xl bg-slate-100 py-3 font-bold text-slate-700 transition hover:bg-slate-200"
+                  className="flex-1 rounded-2xl bg-slate-100 py-3 text-xs font-extrabold text-slate-700 transition hover:bg-slate-200"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleResetConfirm}
-                  className="flex-1 rounded-2xl bg-red-600 py-3 font-bold text-white shadow transition hover:bg-red-700"
+                  className="flex-1 rounded-2xl bg-rose-600 py-3 text-xs font-black text-white shadow transition hover:bg-rose-700"
                 >
-                  Sí, Restablecer
+                  🔥 Sí, Restablecer Todo y Borrar Invitados
                 </button>
               </div>
             </motion.div>

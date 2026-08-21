@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { submitRSVP, subscribeEventSchedule, subscribeParentsNames, subscribeRSVPs } from "@/lib/db";
+import { likeRSVPMessage, submitRSVP, subscribeEventSchedule, subscribeParentsNames, subscribeRSVPs } from "@/lib/db";
 import { EVENT_NAME, EVENT_TAGLINE } from "@/lib/constants";
 import type { EventSchedule, RSVP } from "@/lib/types";
+import { EventCancellationBanner } from "@/components/shared/EventCancellationBanner";
 
 const MAX_CAPACITY = 20;
 
@@ -112,6 +113,9 @@ export function InvitationCard() {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center justify-center gap-6 px-4 py-10">
+      {/* Event Cancellation / Postponement Banner */}
+      <EventCancellationBanner />
+
       {/* Mode Selector Header */}
       <div className="flex w-full items-center justify-center gap-2 rounded-full border-2 border-white bg-white/80 p-1.5 shadow-md backdrop-blur">
         <button
@@ -703,6 +707,40 @@ export function InvitationCard() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Wall of Guest Wishes with ❤️ Likes */}
+      {rsvps.filter((r) => r.message).length > 0 && (
+        <div className="flex w-full flex-col gap-3 rounded-3xl border-2 border-pink-200 bg-white/95 p-5 shadow-xl backdrop-blur">
+          <div className="flex items-center justify-between border-b border-pink-100 pb-2">
+            <span className="text-xs font-black uppercase tracking-wider text-pink-950 flex items-center gap-1.5">
+              <span>💌</span> Deseos y Felicitaciones de los Invitados ({rsvps.filter((r) => r.message).length})
+            </span>
+          </div>
+          <div className="flex flex-col gap-3 max-h-64 overflow-y-auto pr-1">
+            {rsvps
+              .filter((r) => r.message)
+              .map((item) => (
+                <div key={item.id} className="flex flex-col gap-1.5 rounded-2xl bg-pink-50/70 p-3.5 border border-pink-200/80 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-slate-800">
+                      {item.name} {item.mode === "remota" ? "🌐 (Remoto)" : "🎟️ (Presencial)"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => likeRSVPMessage(item.id)}
+                      className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-black text-rose-600 border border-rose-200 shadow-sm transition hover:bg-rose-50 hover:scale-105 active:scale-95"
+                    >
+                      <span className="animate-pulse">❤️</span> Me Gusta ({item.likes || 0})
+                    </button>
+                  </div>
+                  <p className="text-xs font-medium text-slate-700 italic leading-relaxed">
+                    &quot;{item.message}&quot;
+                  </p>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
 
       {/* Navigation Footer */}
       <footer className="flex flex-col items-center gap-2 text-center">

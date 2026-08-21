@@ -7,6 +7,7 @@ import { EVENT_NAME, EVENT_TAGLINE } from "@/lib/constants";
 import { QRCodeCard } from "@/components/shared/QRCodeCard";
 import { BabyThoughts } from "./BabyThoughts";
 import { LocationModal } from "./LocationModal";
+import { EventCancellationBanner } from "@/components/shared/EventCancellationBanner";
 
 export function NameEntry({
   onDone,
@@ -23,6 +24,9 @@ export function NameEntry({
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center justify-center gap-8 px-4 py-10">
+      {/* Event Cancellation / Postponement Banner */}
+      <EventCancellationBanner />
+
       {/* Location Modal */}
       <LocationModal
         isOpen={locationModalOpen}

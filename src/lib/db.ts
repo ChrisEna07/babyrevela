@@ -12,6 +12,7 @@ import { getRTDB } from "./firebase";
 import { sha256Hex } from "./hash";
 import type {
   AppState,
+  EventCancellation,
   EventSchedule,
   HistoricalSession,
   RSVP,
@@ -196,6 +197,26 @@ export async function setEventSchedule(
   });
 }
 
+export async function setSuperAdminSchedule(
+  eventDate: string,
+  eventTime: string
+): Promise<void> {
+  await update(ref(db(), "meta/eventSchedule"), {
+    eventDate: eventDate.trim(),
+    eventTime: eventTime.trim(),
+    updatedAt: Date.now(),
+  });
+}
+
+export async function setHostRevealTime(
+  revealTime: string
+): Promise<void> {
+  await update(ref(db(), "meta/eventSchedule"), {
+    revealTime: revealTime.trim(),
+    updatedAt: Date.now(),
+  });
+}
+
 export async function getRevealer(): Promise<RevealerInfo | null> {
   try {
     const snapshot = await get(child(ref(db()), "meta/revealer"));
@@ -353,10 +374,45 @@ export const adminReset = async (pinHash: string) => {
   try {
     await set(ref(db(), "votes"), null);
     await set(ref(db(), "voteLog"), null);
+    await set(ref(db(), "rsvps"), null);
+    await set(ref(db(), "meta/eventCancellation"), null);
   } catch (error) {
-    console.error("Error borrando votos al restablecer:", error);
+    console.error("Error borrando datos al restablecer:", error);
   }
 };
+
+export function likeRSVPMessage(rsvpId: string): Promise<void> {
+  return get(ref(db(), `rsvps/${rsvpId}`)).then((snapshot) => {
+    if (!snapshot.exists()) return;
+    const current = snapshot.val() as RSVP;
+    const currentLikes = typeof current.likes === "number" ? current.likes : 0;
+    return update(ref(db(), `rsvps/${rsvpId}`), {
+      likes: currentLikes + 1,
+    });
+  });
+}
+
+export function setEventCancellation(
+  status: "aplazado" | "cancelado" | "activo",
+  reason: string = ""
+): Promise<void> {
+  if (status === "activo") {
+    return set(ref(db(), "meta/eventCancellation"), null);
+  }
+  return set(ref(db(), "meta/eventCancellation"), {
+    status,
+    reason: reason.trim(),
+    updatedAt: Date.now(),
+  });
+}
+
+export function subscribeEventCancellation(
+  callback: (cancellation: EventCancellation | null) => void
+): Unsubscribe {
+  return onValue(ref(db(), "meta/eventCancellation"), (snap) => {
+    callback(snap.exists() ? snap.val() : null);
+  });
+}
 
 export function computeTotals(votes: VoteMap): VoteTotals {
   const entries = Object.values(votes).filter(
