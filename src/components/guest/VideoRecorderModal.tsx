@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function VideoRecorderModal({
@@ -40,6 +40,13 @@ export function VideoRecorderModal({
     setCameraActive(false);
   };
 
+  useEffect(() => {
+    if (cameraActive && streamRef.current && liveVideoRef.current) {
+      liveVideoRef.current.srcObject = streamRef.current;
+      liveVideoRef.current.play().catch(() => {});
+    }
+  }, [cameraActive]);
+
   const startCamera = async () => {
     setErrorMsg("");
     try {
@@ -48,9 +55,6 @@ export function VideoRecorderModal({
         audio: true,
       });
       streamRef.current = stream;
-      if (liveVideoRef.current) {
-        liveVideoRef.current.srcObject = stream;
-      }
       setCameraActive(true);
     } catch (err) {
       console.error(err);
@@ -93,9 +97,9 @@ export function VideoRecorderModal({
 
       timerRef.current = setInterval(() => {
         setRecordingSeconds((prev) => {
-          if (prev >= 29) {
+          if (prev >= 9) {
             handleStopRecording();
-            return 30;
+            return 10;
           }
           return prev + 1;
         });
@@ -174,7 +178,7 @@ export function VideoRecorderModal({
           </div>
 
           <p className="text-xs font-semibold text-slate-600 leading-relaxed">
-            ¡Graba o sube un video corto (10-30 seg) diciendo quién eres (ej. <i>Tía, Prima, Abuela</i>) y si crees que será <strong>Niño 👦</strong> o <strong>Niña 👧</strong>!
+            ¡Graba o sube un video corto (máx 10 seg) diciendo quién eres (ej. <i>Tía, Prima, Abuela</i>) y si crees que será <strong>Niño 👦</strong> o <strong>Niña 👧</strong>!
           </p>
 
           {errorMsg && (
@@ -210,7 +214,7 @@ export function VideoRecorderModal({
             {isRecording && (
               <div className="absolute top-3 left-3 flex items-center gap-2 rounded-full bg-rose-600 px-3 py-1 text-xs font-black text-white shadow animate-pulse">
                 <span>🔴 REC</span>
-                <span>{recordingSeconds}s / 30s</span>
+                <span>{recordingSeconds}s / 10s</span>
               </div>
             )}
           </div>
@@ -246,7 +250,7 @@ export function VideoRecorderModal({
                     onClick={handleStartRecording}
                     className="flex-1 rounded-2xl bg-rose-600 py-3 text-xs font-black text-white shadow transition hover:bg-rose-700"
                   >
-                    🔴 Iniciar Grabación (Máx 30s)
+                    🔴 Iniciar Grabación (10s)
                   </button>
                 ) : (
                   <button

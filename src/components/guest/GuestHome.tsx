@@ -17,9 +17,89 @@ import { FullPageLoader } from "@/components/shared/FullPageLoader";
 import { LocationModal } from "./LocationModal";
 import { EventCancellationBanner } from "@/components/shared/EventCancellationBanner";
 import { SupportChatWidget } from "@/components/shared/SupportChatWidget";
+import { fireVoteConfetti } from "@/lib/confetti";
 import { VideoRecorderModal } from "./VideoRecorderModal";
 
 const guestStore = createClientStore<StoredGuest>(GUEST_KEY);
+
+function ForceVoteModal({
+  guestName,
+  onVote,
+}: {
+  guestName: string;
+  onVote: (team: Team) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.85, y: 30 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 200, damping: 18 }}
+        className="flex w-full max-w-md flex-col items-center gap-5 rounded-3xl border-4 border-pink-400 bg-white p-6 text-center shadow-2xl"
+      >
+        <div className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-white shadow-lg bg-pink-50">
+          <img
+            src="/gift/Powder Explodes All Over Wife At Gender Reveal GIF by ViralHog.gif"
+            alt="Gender Reveal GIF"
+            className="h-full w-full object-cover"
+          />
+        </div>
+
+        <div className="flex flex-col items-center gap-1">
+          <span className="rounded-full bg-pink-100 px-3 py-1 text-[11px] font-black uppercase text-pink-900 shadow-sm animate-pulse">
+            🚨 Votación Obligatoria
+          </span>
+          <h2 className="font-display text-2xl text-slate-900 mt-1">
+            ¡Hola, {guestName}! 👋
+          </h2>
+          <h3 className="font-display text-lg text-pink-950">
+            ¿Qué crees que será el bebé?
+          </h3>
+        </div>
+
+        <p className="text-xs font-semibold text-slate-600 leading-relaxed">
+          Para ver toda la experiencia en vivo del baby shower y participar, <strong>debes elegir tu equipo preferido ahora mismo</strong>:
+        </p>
+
+        <div className="grid w-full grid-cols-2 gap-3 pt-2">
+          <button
+            type="button"
+            onClick={() => {
+              fireVoteConfetti("boy");
+              onVote("boy");
+            }}
+            className="flex flex-col items-center justify-center gap-2 rounded-2xl border-4 border-sky-400 bg-gradient-to-b from-sky-400 to-sky-600 p-4 text-white shadow-xl transition hover:scale-105 active:scale-95"
+          >
+            <span className="text-4xl">👦</span>
+            <span className="font-display text-lg font-bold">Team NIÑO</span>
+            <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-black">
+              Votar Niño 👦
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              fireVoteConfetti("girl");
+              onVote("girl");
+            }}
+            className="flex flex-col items-center justify-center gap-2 rounded-2xl border-4 border-pink-400 bg-gradient-to-b from-pink-400 to-pink-600 p-4 text-white shadow-xl transition hover:scale-105 active:scale-95"
+          >
+            <span className="text-4xl">👧</span>
+            <span className="font-display text-lg font-bold">Team NIÑA</span>
+            <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-black">
+              Votar Niña 👧
+            </span>
+          </button>
+        </div>
+
+        <p className="text-[11px] font-bold text-slate-400 italic">
+          (Podrás cambiar tu voto más adelante si lo deseas)
+        </p>
+      </motion.div>
+    </div>
+  );
+}
 
 function WaitingScreen() {
   return (
@@ -150,6 +230,14 @@ export function GuestHome() {
         existingVideoUrl={myRSVP?.videoUrl}
         onSaveVideo={handleSaveVideoFromGuestHome}
       />
+
+      {/* Invasive Mandatory Voting Modal if guest hasn't voted yet during voting phase */}
+      {guest && !myVote && appState !== null && (phase === "voting" || appState.votingOpen) && (
+        <ForceVoteModal
+          guestName={guest.name}
+          onVote={(team: Team) => void castVote(guest.id, guest.name, team)}
+        />
+      )}
 
       <header className="flex w-full items-center justify-between gap-4">
         <div>

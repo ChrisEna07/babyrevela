@@ -52,29 +52,34 @@ export function RevelationSimulatorModal({
     setTestTeam(team);
     setCounter(10);
     setTestPhase("countdown");
-
-    // Start redoble audio loop
-    try {
-      if (drumRef.current) {
-        drumRef.current.pause();
-      }
-      const drum = new Audio("/songreveal/redoble.mp3");
-      drum.loop = true;
-      drum.play().catch((err) => console.log("Drum audio blocked:", err));
-      drumRef.current = drum;
-    } catch (e) {
-      console.error("Error playing redoble:", e);
+    if (drumRef.current) {
+      drumRef.current.pause();
+      drumRef.current.currentTime = 0;
+      drumRef.current = null;
     }
   };
 
   useEffect(() => {
     if (testPhase !== "countdown") return;
 
+    // Start redoble audio ONLY in the final 5 seconds for suspense!
+    if (counter <= 5 && counter > 0 && !drumRef.current) {
+      try {
+        const drum = new Audio("/songreveal/redoble.mp3");
+        drum.loop = true;
+        drum.play().catch((err) => console.log("Drum audio blocked:", err));
+        drumRef.current = drum;
+      } catch (e) {
+        console.error("Error playing redoble:", e);
+      }
+    }
+
     if (counter === 0) {
       // Stop drum audio immediately when countdown completes
       if (drumRef.current) {
         drumRef.current.pause();
         drumRef.current.currentTime = 0;
+        drumRef.current = null;
       }
 
       const timer = setTimeout(() => {

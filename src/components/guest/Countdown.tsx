@@ -16,11 +16,26 @@ export function Countdown({
     if (!endsAt) return;
     const drumAudio = new Audio("/songreveal/redoble.mp3");
     drumAudio.loop = true;
-    drumAudio.play().catch(() => {});
+    let isPlaying = false;
 
     const tick = () => {
       const remaining = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
       setSeconds(remaining);
+
+      // Play redoble audio ONLY in the final 5 seconds for max suspense!
+      if (remaining <= 5 && remaining > 0) {
+        if (!isPlaying) {
+          isPlaying = true;
+          drumAudio.play().catch(() => {});
+        }
+      } else {
+        if (isPlaying) {
+          isPlaying = false;
+          drumAudio.pause();
+          drumAudio.currentTime = 0;
+        }
+      }
+
       if (remaining === 0) {
         drumAudio.pause();
         drumAudio.currentTime = 0;
