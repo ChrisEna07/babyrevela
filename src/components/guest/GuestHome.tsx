@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { castVote, computeTotals, likeRSVPMessage, subscribeRSVPs, subscribeState, subscribeVotes } from "@/lib/db";
+import { castVote, computeTotals, likeRSVPMessage, submitRSVP, subscribeRSVPs, subscribeState, subscribeVotes, updateRSVP } from "@/lib/db";
 import type { AppState, RSVP, StoredGuest, Team, VoteMap } from "@/lib/types";
 import { EVENT_NAME, GUEST_KEY } from "@/lib/constants";
 import { createClientStore } from "@/lib/storage";
@@ -17,6 +17,7 @@ import { FullPageLoader } from "@/components/shared/FullPageLoader";
 import { LocationModal } from "./LocationModal";
 import { EventCancellationBanner } from "@/components/shared/EventCancellationBanner";
 import { SupportChatWidget } from "@/components/shared/SupportChatWidget";
+import { VideoRecorderModal } from "./VideoRecorderModal";
 
 const guestStore = createClientStore<StoredGuest>(GUEST_KEY);
 
@@ -93,6 +94,25 @@ export function GuestHome() {
 
   const videoRSVPs = useMemo(() => rsvps.filter((r) => r.videoUrl), [rsvps]);
 
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+
+  const myRSVP = useMemo(() => {
+    if (typeof window === "undefined") return undefined;
+    const rsvpId = localStorage.getItem("my_baby_rsvp_id");
+    return rsvpId ? rsvps.find((r) => r.id === rsvpId) : undefined;
+  }, [rsvps]);
+
+  const handleSaveVideoFromGuestHome = async (videoUrl: string) => {
+    if (myRSVP) {
+      await updateRSVP(myRSVP.id, { videoUrl });
+    } else if (guest) {
+      const created = await submitRSVP(guest.name, true, 1, "", "presencial", "Familiar", undefined, videoUrl);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("my_baby_rsvp_id", created.id);
+      }
+    }
+  };
+
   if (!guest || showingLanding) {
     return (
       <NameEntry
@@ -121,6 +141,14 @@ export function GuestHome() {
       <LocationModal
         isOpen={locationModalOpen}
         onClose={() => setLocationModalOpen(false)}
+      />
+
+      {/* Video Recorder Modal */}
+      <VideoRecorderModal
+        isOpen={videoModalOpen}
+        onClose={() => setVideoModalOpen(false)}
+        existingVideoUrl={myRSVP?.videoUrl}
+        onSaveVideo={handleSaveVideoFromGuestHome}
       />
 
       <header className="flex w-full items-center justify-between gap-4">
@@ -152,6 +180,29 @@ export function GuestHome() {
           </button>
         </div>
       </header>
+
+      {/* 🎬 Video Saludo Banner CTA */}
+      <section className="w-full rounded-3xl border-2 border-pink-300 bg-gradient-to-br from-pink-50 via-purple-50 to-white p-5 shadow-lg text-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-2xl animate-bounce">🎬</span>
+            <h3 className="font-display text-lg text-pink-950">
+              ¡Déjanos tu Video Saludo para el Collage de TikTok!
+            </h3>
+          </div>
+          <p className="max-w-md text-xs font-semibold text-slate-600 leading-relaxed">
+            Graba con tu cámara o adjunta un clip corto de tu galería (10-30 seg) diciendo quién eres y tu felicitación para el recuerdo.
+          </p>
+          <button
+            type="button"
+            onClick={() => setVideoModalOpen(true)}
+            className="rounded-2xl bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 px-6 py-3 text-xs font-black text-white shadow-md transition hover:scale-105 flex items-center gap-2"
+          >
+            <span>📹</span>
+            {myRSVP?.videoUrl ? "✅ ¡Video Adjuntado! (Ver o cambiar)" : "Grabar o Adjuntar Mi Video Saludo"}
+          </button>
+        </div>
+      </section>
 
       {appState === null && <FullPageLoader label="Sincronizando…" />}
 

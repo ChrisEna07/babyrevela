@@ -31,6 +31,12 @@ export function SupportChatWidget() {
     }
   });
 
+  const [lastSeenSupportTime, setLastSeenSupportTime] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    const saved = localStorage.getItem("my_last_seen_support_time");
+    return saved ? Number(saved) : 0;
+  });
+
   const [messageText, setMessageText] = useState("");
   const [chats, setChats] = useState<SupportChatMessage[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -41,6 +47,18 @@ export function SupportChatWidget() {
     const unsub = subscribeSupportChats(setChats);
     return () => unsub();
   }, []);
+
+  const handleToggleOpen = () => {
+    const nextState = !isOpen;
+    setIsOpen(nextState);
+    if (nextState) {
+      const now = Date.now();
+      setLastSeenSupportTime(now);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("my_last_seen_support_time", now.toString());
+      }
+    }
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,22 +92,24 @@ export function SupportChatWidget() {
   };
 
   const myChats = chats.filter((c) => myChatIds.includes(c.id));
-  const hasUnanswered = myChats.some((c) => c.status === "answered");
+  const unreadCount = myChats.filter(
+    (c) => c.status === "answered" && (c.answeredAt || 0) > lastSeenSupportTime
+  ).length;
 
   return (
     <>
-      {/* Floating Chat Bubble Button */}
+      {/* Compact Transparent Floating Chat Bubble */}
       <div className="fixed bottom-5 right-5 z-40">
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="relative flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 px-4 py-3 text-xs font-black text-white shadow-2xl transition hover:scale-105 border-2 border-white"
+          onClick={handleToggleOpen}
+          className="relative flex h-13 w-13 items-center justify-center rounded-full bg-gradient-to-tr from-pink-600/85 via-purple-600/85 to-indigo-600/85 backdrop-blur-md text-white shadow-2xl transition-all duration-300 hover:scale-110 active:scale-95 border-2 border-white/90"
+          title="Chat de Soporte / Preguntas al Anfitrión"
         >
-          <span className="text-base">💬</span>
-          <span>¿Tienes dudas? Chat con Anfitrión</span>
-          {hasUnanswered && (
-            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-white animate-pulse">
-              1
+          <span className="text-2xl">💬</span>
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-white shadow-md border-2 border-white animate-pulse">
+              {unreadCount}
             </span>
           )}
         </button>
