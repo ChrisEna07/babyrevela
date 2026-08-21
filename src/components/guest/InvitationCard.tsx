@@ -4,10 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { likeRSVPMessage, submitRSVP, subscribeEventSchedule, subscribeParentsNames, subscribeRSVPs } from "@/lib/db";
+import { addRSVPComment, likeRSVPMessage, submitRSVP, subscribeEventSchedule, subscribeParentsNames, subscribeRSVPs, updateRSVP } from "@/lib/db";
 import { EVENT_NAME, EVENT_TAGLINE } from "@/lib/constants";
-import type { EventSchedule, RSVP } from "@/lib/types";
+import type { EventSchedule, RSVP, Team } from "@/lib/types";
 import { EventCancellationBanner } from "@/components/shared/EventCancellationBanner";
+import { VideoRecorderModal } from "./VideoRecorderModal";
 
 const MAX_CAPACITY = 20;
 
@@ -22,6 +23,18 @@ export function InvitationCard() {
   const [name, setName] = useState("");
   const [attending, setAttending] = useState<boolean>(true);
   const [message, setMessage] = useState("");
+  const [relationship, setRelationship] = useState("Tía / Tío");
+  const [prediction, setPrediction] = useState<Team | "">("");
+  const [videoUrl, setVideoUrl] = useState<string>("");
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [existingRSVPId, setExistingRSVPId] = useState<string | null>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("my_baby_rsvp_id") : null
+  );
+
+  // Comments state on Wishes Wall
+  const [commentingRSVPId, setCommentingRSVPId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -41,6 +54,21 @@ export function InvitationCard() {
       unsubRsvps();
     };
   }, []);
+
+  const [syncedRSVPId, setSyncedRSVPId] = useState<string | null>(null);
+
+  if (existingRSVPId && syncedRSVPId !== existingRSVPId && rsvps.length > 0) {
+    const match = rsvps.find((r) => r.id === existingRSVPId);
+    if (match) {
+      setSyncedRSVPId(existingRSVPId);
+      if (match.name) setName(match.name);
+      setAttending(match.attending);
+      if (match.message) setMessage(match.message);
+      if (match.relationship) setRelationship(match.relationship);
+      if (match.prediction) setPrediction(match.prediction);
+      if (match.videoUrl) setVideoUrl(match.videoUrl);
+    }
+  }
 
   const confirmedPresencialCount = rsvps
     .filter((r) => r.attending && r.mode !== "remota")
@@ -101,13 +129,50 @@ export function InvitationCard() {
     setErrorMsg("");
 
     try {
-      await submitRSVP(name, attending, 1, message, mode);
+      if (existingRSVPId) {
+        await updateRSVP(existingRSVPId, {
+          name: name.trim(),
+          attending,
+          mode,
+          message: message.trim(),
+          relationship: relationship.trim(),
+          prediction: prediction || undefined,
+          videoUrl: videoUrl || undefined,
+        });
+      } else {
+        const created = await submitRSVP(
+          name,
+          attending,
+          1,
+          message,
+          mode,
+          relationship,
+          prediction || undefined,
+          videoUrl
+        );
+        setExistingRSVPId(created.id);
+        localStorage.setItem("my_baby_rsvp_id", created.id);
+      }
       setSubmitted(true);
     } catch (err) {
       console.error(err);
-      setErrorMsg("Ocurrió un error al enviar tu confirmación. Inténtalo de nuevo.");
+      setErrorMsg("Ocurrió un error al guardar tu confirmación. Inténtalo de nuevo.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleAddComment = async (rsvpId: string) => {
+    if (!commentText.trim() || submittingComment) return;
+    setSubmittingComment(true);
+    try {
+      await addRSVPComment(rsvpId, name || "Invitado", commentText);
+      setCommentText("");
+      setCommentingRSVPId(null);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmittingComment(false);
     }
   };
 
@@ -556,6 +621,13 @@ export function InvitationCard() {
             )}
 
             <div className="flex flex-wrap justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setSubmitted(false)}
+                className="rounded-2xl bg-amber-500 px-5 py-3 font-extrabold text-white shadow-md transition hover:bg-amber-600"
+              >
+                ✏️ Editar mi confirmación o corregir datos
+              </button>
               <Link
                 href="/"
                 className="rounded-2xl bg-gradient-to-r from-sky-600 via-indigo-600 to-pink-600 px-6 py-3.5 font-extrabold text-white shadow-lg transition hover:shadow-xl"
@@ -643,6 +715,79 @@ export function InvitationCard() {
               </div>
             )}
 
+            {/* Parentesco / Relación */}
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="rsvpRelationship" className="text-xs font-bold text-slate-600">
+                👤 Parentesco o relación con la familia:
+              </label>
+              <select
+                id="rsvpRelationship"
+                value={relationship}
+                onChange={(e) => setRelationship(e.target.value)}
+                className="w-full rounded-2xl border-2 border-slate-200 bg-slate-50 px-4 py-2.5 font-semibold text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white text-xs"
+              >
+                <option value="Tía / Tío">👩‍🦰 Tía / Tío</option>
+                <option value="Prima / Primo">👧 Prima / Primo</option>
+                <option value="Abuela / Abuelo">👵 Abuela / Abuelo</option>
+                <option value="Padrino / Madrina">⭐ Padrino / Madrina</option>
+                <option value="Hermana / Hermano">👦 Hermana / Hermano</option>
+                <option value="Amigo / Amiga de la Familia">❤️ Amigo / Amiga de la Familia</option>
+                <option value="Familiar">✨ Familiar</option>
+              </select>
+            </div>
+
+            {/* Predicción Niño / Niña */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-600">
+                🔮 Tu predicción rápida (¿Qué crees que será?):
+              </label>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setPrediction("boy")}
+                  className={`flex items-center justify-center gap-2 rounded-2xl border-2 py-2.5 text-xs font-black transition ${
+                    prediction === "boy"
+                      ? "border-sky-500 bg-sky-500 text-white shadow"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <span>👦</span> Crees que es NIÑO
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrediction("girl")}
+                  className={`flex items-center justify-center gap-2 rounded-2xl border-2 py-2.5 text-xs font-black transition ${
+                    prediction === "girl"
+                      ? "border-pink-500 bg-pink-500 text-white shadow"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <span>👧</span> Crees que es NIÑA
+                </button>
+              </div>
+            </div>
+
+            {/* Video Upload / Recorder Button for TikTok Collage */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-600">
+                📹 Video Saludo corto para el Collage de TikTok (Opcional):
+              </label>
+              <button
+                type="button"
+                onClick={() => setVideoModalOpen(true)}
+                className={`flex items-center justify-center gap-2 rounded-2xl border-2 p-3 text-xs font-black transition ${
+                  videoUrl
+                    ? "border-emerald-500 bg-emerald-50 text-emerald-950 shadow-sm"
+                    : "border-pink-300 bg-pink-50 text-pink-950 hover:bg-pink-100"
+                }`}
+              >
+                <span>{videoUrl ? "✅" : "🎬"}</span>
+                {videoUrl
+                  ? "¡Video Adjuntado! (Haz clic para ver o cambiar)"
+                  : "Grabar o Cargar Video Saludo Corto (10-30s)"}
+              </button>
+            </div>
+
             {/* Warm Message Optional */}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="message" className="text-xs font-bold text-slate-600">
@@ -708,39 +853,134 @@ export function InvitationCard() {
         )}
       </AnimatePresence>
 
-      {/* Wall of Guest Wishes with ❤️ Likes */}
-      {rsvps.filter((r) => r.message).length > 0 && (
+      {/* Wall of Guest Wishes with ❤️ Likes, 💬 Comments & 📹 Video Clips */}
+      {rsvps.length > 0 && (
         <div className="flex w-full flex-col gap-3 rounded-3xl border-2 border-pink-200 bg-white/95 p-5 shadow-xl backdrop-blur">
           <div className="flex items-center justify-between border-b border-pink-100 pb-2">
             <span className="text-xs font-black uppercase tracking-wider text-pink-950 flex items-center gap-1.5">
-              <span>💌</span> Deseos y Felicitaciones de los Invitados ({rsvps.filter((r) => r.message).length})
+              <span>💌</span> Deseos, Predicciones y Saludos ({rsvps.length})
             </span>
           </div>
-          <div className="flex flex-col gap-3 max-h-64 overflow-y-auto pr-1">
-            {rsvps
-              .filter((r) => r.message)
-              .map((item) => (
-                <div key={item.id} className="flex flex-col gap-1.5 rounded-2xl bg-pink-50/70 p-3.5 border border-pink-200/80 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-slate-800">
-                      {item.name} {item.mode === "remota" ? "🌐 (Remoto)" : "🎟️ (Presencial)"}
-                    </span>
+          <div className="flex flex-col gap-3.5 max-h-96 overflow-y-auto pr-1">
+            {rsvps.map((item) => {
+              const commentsList = item.comments ? Object.values(item.comments) : [];
+              return (
+                <div key={item.id} className="flex flex-col gap-2 rounded-2xl bg-pink-50/70 p-3.5 border border-pink-200/80 shadow-sm">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs font-extrabold text-slate-800">
+                          {item.name}
+                        </span>
+                        {item.relationship && (
+                          <span className="rounded-full bg-pink-200/70 px-2 py-0.5 text-[10px] font-bold text-pink-950">
+                            {item.relationship}
+                          </span>
+                        )}
+                        <span className="text-[10px] font-semibold text-slate-500">
+                          {item.mode === "remota" ? "🌐 Remoto" : "🎟️ Presencial"}
+                        </span>
+                      </div>
+
+                      {item.prediction && (
+                        <span className={`inline-block mt-1 text-[11px] font-black rounded-md px-2 py-0.5 ${
+                          item.prediction === "boy" ? "bg-sky-100 text-sky-900 border border-sky-200" : "bg-pink-100 text-pink-900 border border-pink-200"
+                        }`}>
+                          🔮 Predicción: {item.prediction === "boy" ? "👦 Crees que es NIÑO" : "👧 Crees que es NIÑA"}
+                        </span>
+                      )}
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => likeRSVPMessage(item.id)}
-                      className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-black text-rose-600 border border-rose-200 shadow-sm transition hover:bg-rose-50 hover:scale-105 active:scale-95"
+                      className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-black text-rose-600 border border-rose-200 shadow-sm transition hover:bg-rose-50 hover:scale-105 active:scale-95 shrink-0"
                     >
-                      <span className="animate-pulse">❤️</span> Me Gusta ({item.likes || 0})
+                      <span className="animate-pulse">❤️</span> {item.likes || 0}
                     </button>
                   </div>
-                  <p className="text-xs font-medium text-slate-700 italic leading-relaxed">
-                    &quot;{item.message}&quot;
-                  </p>
+
+                  {item.message && (
+                    <p className="text-xs font-medium text-slate-700 italic leading-relaxed">
+                      &quot;{item.message}&quot;
+                    </p>
+                  )}
+
+                  {/* Video Clip Player */}
+                  {item.videoUrl && (
+                    <div className="mt-1 overflow-hidden rounded-xl border border-pink-300 bg-slate-950">
+                      <video
+                        src={item.videoUrl}
+                        controls
+                        className="max-h-48 w-full object-contain"
+                      />
+                    </div>
+                  )}
+
+                  {/* Comments Thread */}
+                  <div className="mt-1 flex flex-col gap-1.5 border-t border-pink-200/60 pt-2">
+                    {commentsList.length > 0 && (
+                      <div className="flex flex-col gap-1 pl-2 border-l-2 border-pink-300">
+                        {commentsList.map((c) => (
+                          <div key={c.id} className="text-[11px]">
+                            <strong className="text-slate-800">{c.author}:</strong>{" "}
+                            <span className="text-slate-700">{c.text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {commentingRSVPId === item.id ? (
+                      <div className="flex gap-1.5 pt-1">
+                        <input
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          placeholder="Escribe un comentario..."
+                          className="flex-1 rounded-xl border border-pink-300 bg-white px-3 py-1 text-xs font-medium outline-none focus:border-pink-500"
+                        />
+                        <button
+                          type="button"
+                          disabled={submittingComment}
+                          onClick={() => handleAddComment(item.id)}
+                          className="rounded-xl bg-pink-600 px-3 py-1 text-xs font-bold text-white shadow hover:bg-pink-700"
+                        >
+                          Enviar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCommentingRSVPId(null)}
+                          className="rounded-xl bg-slate-200 px-2 py-1 text-xs text-slate-700 hover:bg-slate-300"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCommentingRSVPId(item.id);
+                          setCommentText("");
+                        }}
+                        className="self-start text-[11px] font-bold text-pink-700 hover:underline"
+                      >
+                        💬 Responder / Comentar ({commentsList.length})
+                      </button>
+                    )}
+                  </div>
                 </div>
-              ))}
+              );
+            })}
           </div>
         </div>
       )}
+
+      {/* Video Recorder Modal */}
+      <VideoRecorderModal
+        isOpen={videoModalOpen}
+        onClose={() => setVideoModalOpen(false)}
+        onSaveVideo={(url) => setVideoUrl(url)}
+        existingVideoUrl={videoUrl}
+      />
 
       {/* Navigation Footer */}
       <footer className="flex flex-col items-center gap-2 text-center">

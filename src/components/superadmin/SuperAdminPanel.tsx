@@ -4,21 +4,27 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
+  DEFAULT_LOCATION,
   adminReset,
   computeTotals,
   createHostSetupLink,
+  createSingleUseTenantInvite,
   getHostInfo,
   likeRSVPMessage,
   resetHostCredentials,
   setEventCancellation,
+  setEventLocation,
   setParentsNames,
   setSuperAdminSchedule,
   subscribeEventCancellation,
+  subscribeEventLocation,
   subscribeEventSchedule,
   subscribeHistory,
+  subscribeMasterAnalytics,
   subscribeParentsNames,
   subscribeRSVPs,
   subscribeState,
+  subscribeTenantInvites,
   subscribeVoteLog,
   subscribeVotes,
 } from "@/lib/db";
@@ -26,8 +32,10 @@ import type {
   AppState,
   EventSchedule,
   HistoricalSession,
+  MasterAnalytics,
   RSVP,
   Team,
+  TenantInvite,
   VoteLogEntry,
   VoteMap,
 } from "@/lib/types";
@@ -37,6 +45,7 @@ import { FullPageLoader } from "@/components/shared/FullPageLoader";
 import { PercentageBar } from "@/components/guest/PercentageBar";
 import { VoteTimeline } from "./VoteTimeline";
 import { RevelationSimulatorModal } from "./RevelationSimulatorModal";
+import { LocationModal } from "@/components/guest/LocationModal";
 
 const TEAM_EMOJI: Record<Team, string> = { boy: "💙", girl: "💗" };
 const TEAM_LABEL: Record<Team, string> = { boy: "Niño", girl: "Niña" };
@@ -94,6 +103,19 @@ export function SuperAdminPanel({
   const [isResetting, setIsResetting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Custom Location & Reference Image State
+  const [addressInput, setAddressInput] = useState(DEFAULT_LOCATION.address);
+  const [referenceInput, setReferenceInput] = useState(DEFAULT_LOCATION.reference);
+  const [photoUrlInput, setPhotoUrlInput] = useState(DEFAULT_LOCATION.photoUrl);
+  const [savingLocation, setSavingLocation] = useState(false);
+  const [locationPreviewOpen, setLocationPreviewOpen] = useState(false);
+
+  // Master Dashboard ChrizDev State
+  const [masterAnalytics, setMasterAnalytics] = useState<MasterAnalytics | null>(null);
+  const [singleUseInvites, setSingleUseInvites] = useState<TenantInvite[]>([]);
+  const [newSingleUseLink, setNewSingleUseLink] = useState<string | null>(null);
+  const [generatingSingleUseLink, setGeneratingSingleUseLink] = useState(false);
+
   const refreshHostInfo = () => {
     getHostInfo().then(setHostInfo);
   };
@@ -125,6 +147,16 @@ export function SuperAdminPanel({
         setCancelReason("");
       }
     });
+    const offLoc = subscribeEventLocation((loc) => {
+      if (loc) {
+        setAddressInput(loc.address || DEFAULT_LOCATION.address);
+        setReferenceInput(loc.reference || DEFAULT_LOCATION.reference);
+        setPhotoUrlInput(loc.photoUrl || DEFAULT_LOCATION.photoUrl);
+      }
+    });
+    const offAnalytics = subscribeMasterAnalytics(setMasterAnalytics);
+    const offInvites = subscribeTenantInvites(setSingleUseInvites);
+
     return () => {
       offState();
       offVotes();
@@ -134,8 +166,38 @@ export function SuperAdminPanel({
       offParents();
       offSchedule();
       offCancel();
+      offLoc();
+      offAnalytics();
+      offInvites();
     };
   }, []);
+
+  const handleSaveLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingLocation(true);
+    try {
+      await setEventLocation(addressInput, referenceInput, photoUrlInput);
+      showToast("📍 Ubicación e imagen de referencia actualizadas exitosamente.");
+    } catch {
+      showToast("❌ Error actualizando ubicación.");
+    } finally {
+      setSavingLocation(false);
+    }
+  };
+
+  const handleGenerateSingleUseLink = async () => {
+    setGeneratingSingleUseLink(true);
+    try {
+      const invite = await createSingleUseTenantInvite("ChrizDev");
+      const url = `${window.location.origin}/setup-admin?tenantInvite=${invite.token}`;
+      setNewSingleUseLink(url);
+      showToast("⚡ Enlace único de 1 solo uso generado con éxito.");
+    } catch {
+      showToast("❌ Error al generar enlace único.");
+    } finally {
+      setGeneratingSingleUseLink(false);
+    }
+  };
 
   const totals = useMemo(() => computeTotals(votes), [votes]);
 
@@ -680,6 +742,11 @@ export function SuperAdminPanel({
                     <span className="flex items-center gap-2 text-slate-800">
                       <span>{item.attending ? "✅ Asistirá" : "❌ No Asistirá"}</span>
                       {item.name}
+                      {item.relationship && (
+                        <span className="rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-bold text-pink-900">
+                          {item.relationship}
+                        </span>
+                      )}
                       <span className="font-normal text-slate-500">
                         ({item.guestsCount} persona/s)
                       </span>
@@ -699,6 +766,259 @@ export function SuperAdminPanel({
                       </button>
                     </div>
                   )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* 📹 Galería de Videos de Invitados (Para Collage / TikTok) */}
+      <section className="rounded-3xl border-2 border-pink-300 bg-gradient-to-br from-pink-50 via-purple-50 to-white p-5 shadow-lg backdrop-blur">
+        <div className="flex items-center justify-between border-b border-pink-200 pb-3">
+          <div>
+            <h2 className="flex items-center gap-2 font-display text-xl text-pink-950">
+              <span>🎬</span> Galería de Videos Saludo (Para Collage TikTok)
+            </h2>
+            <p className="text-xs font-semibold text-pink-900/90">
+              Videos cortos enviados por los invitados (Tías, Primas, Abuelas...) indicando su predicción.
+            </p>
+          </div>
+          <span className="rounded-full bg-pink-200 px-3 py-1 text-xs font-black text-pink-950 border border-pink-300">
+            {rsvps.filter((r) => r.videoUrl).length} Videos Recibidos
+          </span>
+        </div>
+
+        {rsvps.filter((r) => r.videoUrl).length === 0 ? (
+          <p className="mt-4 rounded-2xl border border-dashed border-pink-200 p-6 text-center text-xs font-semibold text-pink-800">
+            Aún no se han recibido videos de los invitados. Aparecerán aquí automáticamente tan pronto como los adjunten al confirmar asistencia.
+          </p>
+        ) : (
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {rsvps
+              .filter((r) => r.videoUrl)
+              .map((item) => (
+                <div key={item.id} className="flex flex-col gap-2 rounded-2xl border-2 border-pink-200 bg-white p-3.5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-800">
+                      {item.name}
+                    </span>
+                    {item.relationship && (
+                      <span className="rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-bold text-pink-900">
+                        {item.relationship}
+                      </span>
+                    )}
+                  </div>
+
+                  {item.prediction && (
+                    <span className={`text-[10px] font-black rounded-md px-2 py-0.5 self-start ${
+                      item.prediction === "boy" ? "bg-sky-100 text-sky-900" : "bg-pink-100 text-pink-900"
+                    }`}>
+                      🔮 Predicción: {item.prediction === "boy" ? "👦 NIÑO" : "👧 NIÑA"}
+                    </span>
+                  )}
+
+                  <div className="overflow-hidden rounded-xl border border-slate-900 bg-black">
+                    <video
+                      src={item.videoUrl}
+                      controls
+                      className="max-h-56 w-full object-contain"
+                    />
+                  </div>
+
+                  <a
+                    href={item.videoUrl}
+                    download={`video_${item.name.replace(/\s+/g, "_")}.webm`}
+                    className="mt-1 flex items-center justify-center gap-1.5 rounded-xl bg-pink-600 py-2 text-xs font-extrabold text-white shadow hover:bg-pink-700 transition"
+                  >
+                    <span>⬇️</span> Descargar Clip para Editar Collage TikTok
+                  </a>
+                </div>
+              ))}
+          </div>
+        )}
+      </section>
+
+      {/* 📍 Personalización de Ubicación e Imagen de Referencia */}
+      <section className="rounded-3xl border-2 border-amber-300 bg-amber-50/70 p-5 shadow-lg backdrop-blur">
+        <div className="flex items-center justify-between border-b border-amber-200 pb-3">
+          <div>
+            <h2 className="flex items-center gap-2 font-display text-xl text-amber-950">
+              <span>📍</span> Personalización de Ubicación e Imagen de Referencia
+            </h2>
+            <p className="text-xs font-semibold text-amber-900/90">
+              Personaliza la dirección exacta, notas de llegada e imagen de la entrada para cualquier evento o Baby Shower.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLocationPreviewOpen(true)}
+            className="rounded-full bg-amber-200 px-3.5 py-1.5 text-xs font-black text-amber-950 border border-amber-400 shadow-sm hover:bg-amber-300 transition"
+          >
+            🔍 Previsualizar Modal
+          </button>
+        </div>
+
+        <form onSubmit={handleSaveLocation} className="mt-4 flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-amber-950">
+              🏠 Dirección Exacta del Evento:
+            </label>
+            <input
+              value={addressInput}
+              onChange={(e) => setAddressInput(e.target.value)}
+              placeholder="Ej. Carrera 15 #9a-36. Casa 107. El Poblado"
+              required
+              className="w-full rounded-2xl border-2 border-amber-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-amber-500"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-amber-950">
+              🧭 Referencias e Indicaciones de Llegada:
+            </label>
+            <textarea
+              value={referenceInput}
+              onChange={(e) => setReferenceInput(e.target.value)}
+              rows={3}
+              placeholder="Ej. Subiendo a mano derecha encontrarás la Urbanización Zándalo. Al frente verás la portería..."
+              required
+              className="w-full rounded-2xl border-2 border-amber-200 bg-white p-3 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-amber-950">
+              📸 URL de Imagen de Referencia (Entrada / Fachada / Lugar):
+            </label>
+            <input
+              value={photoUrlInput}
+              onChange={(e) => setPhotoUrlInput(e.target.value)}
+              placeholder="Ej. /imagen_entrada.jpeg o URL https://..."
+              required
+              className="w-full rounded-2xl border-2 border-amber-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-amber-500"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={savingLocation}
+            className="w-full rounded-2xl bg-amber-600 py-3 text-xs font-extrabold text-white shadow hover:bg-amber-700 transition disabled:opacity-50"
+          >
+            {savingLocation ? "Guardando ubicación..." : "💾 Guardar Ubicación e Imagen Personalizada"}
+          </button>
+        </form>
+      </section>
+
+      {/* 👑 Master Dashboard ChrizDev (Analytics Multi-Tenant & Enlaces de 1 Solo Uso) */}
+      <section className="rounded-3xl border-2 border-sky-400 bg-gradient-to-br from-sky-900 via-slate-900 to-indigo-950 p-5 text-white shadow-2xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-sky-800/60 pb-3 gap-2">
+          <div>
+            <h2 className="flex items-center gap-2 font-display text-2xl text-sky-300">
+              <span>👑</span> Master Dashboard ChrizDev (Global Multi-Tenant)
+            </h2>
+            <p className="text-xs font-semibold text-sky-200/90">
+              Monitorización en tiempo real de eventos activos, analíticas globales y generación de enlaces de 1 solo uso para nuevos administradores.
+            </p>
+          </div>
+          <span className="rounded-full bg-sky-500/20 px-3.5 py-1 text-xs font-black text-sky-300 border border-sky-400/40 backdrop-blur">
+            ChrizDev (Christian Romero)
+          </span>
+        </div>
+
+        {/* Realtime Metrics Cards */}
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-sky-800/80 bg-sky-950/60 p-3 text-center">
+            <span className="text-[10px] font-bold uppercase text-sky-300">Eventos Activos</span>
+            <span className="font-display text-2xl font-black text-white">{masterAnalytics?.totalEvents || 1}</span>
+          </div>
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-emerald-800/80 bg-emerald-950/60 p-3 text-center">
+            <span className="text-[10px] font-bold uppercase text-emerald-300">Confirmaciones RSVPs</span>
+            <span className="font-display text-2xl font-black text-white">{masterAnalytics?.totalRSVPs || rsvps.length}</span>
+          </div>
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-purple-800/80 bg-purple-950/60 p-3 text-center">
+            <span className="text-[10px] font-bold uppercase text-purple-300">Votos Totales</span>
+            <span className="font-display text-2xl font-black text-white">{masterAnalytics?.totalVotes || totals.total}</span>
+          </div>
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-amber-800/80 bg-amber-950/60 p-3 text-center">
+            <span className="text-[10px] font-bold uppercase text-amber-300">Enlaces 1-Solo-Uso</span>
+            <span className="font-display text-2xl font-black text-white">{singleUseInvites.length}</span>
+          </div>
+        </div>
+
+        {/* Generator for Single-Use Tenant Invite Links */}
+        <div className="mt-5 rounded-2xl border border-sky-700/60 bg-sky-950/80 p-4 flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-black text-sky-200 flex items-center gap-1.5">
+                <span>⚡</span> Generar Enlace Único Autorizado (1 Solo Uso)
+              </h3>
+              <p className="text-[11px] font-semibold text-slate-300">
+                Permite a un nuevo usuario crear su evento privado. El enlace caduca automáticamente tras su primer uso.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleGenerateSingleUseLink}
+              disabled={generatingSingleUseLink}
+              className="rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 px-4 py-2.5 text-xs font-black text-white shadow hover:from-sky-600 hover:to-blue-700 transition disabled:opacity-50"
+            >
+              {generatingSingleUseLink ? "Generando..." : "⚡ Generar Nuevo Enlace 1-Solo-Uso"}
+            </button>
+          </div>
+
+          {newSingleUseLink && (
+            <div className="flex flex-col gap-2 rounded-xl border border-emerald-500/50 bg-emerald-950/70 p-3">
+              <span className="text-[11px] font-bold text-emerald-300 flex items-center gap-1">
+                <span>✅</span> ¡Enlace Único Creado! Comparte este enlace con el nuevo administrador:
+              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={newSingleUseLink}
+                  className="w-full rounded-lg border border-emerald-700 bg-slate-900 px-3 py-2 text-xs font-mono text-emerald-200 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(newSingleUseLink);
+                    showToast("📋 Enlace de 1 solo uso copiado al portapapeles.");
+                  }}
+                  className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition shrink-0"
+                >
+                  📋 Copiar
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* List of Generated Single Use Invites */}
+        <div className="mt-4 flex flex-col gap-2">
+          <span className="text-xs font-bold text-sky-200">
+            📋 Historial de Enlaces de Autorización Generados:
+          </span>
+          {singleUseInvites.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-sky-800 p-3 text-center text-xs font-medium text-slate-400">
+              Aún no se han generado enlaces únicos de autorización.
+            </p>
+          ) : (
+            <div className="max-h-48 overflow-y-auto divide-y divide-sky-900 rounded-xl border border-sky-800/80 bg-slate-950/90 text-xs">
+              {singleUseInvites.map((inv) => (
+                <div key={inv.id} className="flex items-center justify-between p-2.5">
+                  <div className="flex flex-col">
+                    <span className="font-mono text-[11px] text-sky-300">{inv.token}</span>
+                    <span className="text-[10px] text-slate-400">
+                      Creado: {new Date(inv.createdAt).toLocaleString("es")}
+                    </span>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black border ${
+                    inv.used
+                      ? "bg-rose-950/80 text-rose-300 border-rose-800"
+                      : "bg-emerald-950/80 text-emerald-300 border-emerald-800"
+                  }`}>
+                    {inv.used ? "🔴 USADO (Inhabilitado)" : "🟢 ACTIVO (Disponible)"}
+                  </span>
                 </div>
               ))}
             </div>
@@ -1023,6 +1343,12 @@ export function SuperAdminPanel({
       <RevelationSimulatorModal
         isOpen={simulatorOpen}
         onClose={() => setSimulatorOpen(false)}
+      />
+
+      {/* Location Modal Preview */}
+      <LocationModal
+        isOpen={locationPreviewOpen}
+        onClose={() => setLocationPreviewOpen(false)}
       />
     </div>
   );

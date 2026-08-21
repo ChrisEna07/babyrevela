@@ -58,6 +58,13 @@ export interface HistoricalSession {
   votes: Vote[];
 }
 
+export interface RSVPComment {
+  id: string;
+  author: string;
+  text: string;
+  createdAt: number;
+}
+
 export interface RSVP {
   id: string;
   name: string;
@@ -65,7 +72,11 @@ export interface RSVP {
   guestsCount: number;
   mode?: "presencial" | "remota";
   message?: string;
+  relationship?: string;
+  prediction?: Team;
+  videoUrl?: string;
   likes?: number;
+  comments?: Record<string, RSVPComment>;
   createdAt: number;
 }
 
@@ -91,4 +102,41 @@ export interface EventCancellation {
   status: "aplazado" | "cancelado" | "activo";
   reason: string;
   updatedAt?: number;
+}
+
+export interface EventLocation {
+  address: string;
+  reference: string;
+  photoUrl: string;
+  googleMapsUrl?: string;
+  wazeUrl?: string;
+  appleMapsUrl?: string;
+  updatedAt?: number;
+}
+
+export interface TenantInvite {
+  id: string;
+  token: string;
+  used: boolean;
+  createdBy: string;
+  createdAt: number;
+  usedAt?: number;
+  tenantId?: string;
+}
+
+export interface TenantEvent {
+  tenantId: string;
+  eventName: string;
+  parentsNames: string;
+  ownerName: string;
+  createdAt: number;
+  active: boolean;
+}
+
+export interface MasterAnalytics {
+  totalEvents: number;
+  activeTenantsCount: number;
+  totalRSVPs: number;
+  totalVotes: number;
+  singleUseInvitesCount: number;
 }

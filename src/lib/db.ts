@@ -13,13 +13,17 @@ import { sha256Hex } from "./hash";
 import type {
   AppState,
   EventCancellation,
+  EventLocation,
   EventSchedule,
   HistoricalSession,
+  MasterAnalytics,
   RSVP,
+  RSVPComment,
   RSVPMap,
   RevealerInfo,
   SuperAdminInfo,
   Team,
+  TenantInvite,
   Vote,
   VoteLogEntry,
   VoteMap,
@@ -461,11 +465,15 @@ export function submitRSVP(
   attending: boolean,
   guestsCount: number,
   message?: string,
-  mode: "presencial" | "remota" = "presencial"
-): Promise<void> {
+  mode: "presencial" | "remota" = "presencial",
+  relationship?: string,
+  prediction?: Team,
+  videoUrl?: string
+): Promise<RSVP> {
   const id = `rsvp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const cleanName = (name || "").trim();
   const cleanMessage = (message || "").trim();
+  const cleanRelationship = (relationship || "").trim();
   const validMode = mode === "remota" ? "remota" : "presencial";
   const validGuestsCount = Number(guestsCount) > 0 ? Number(guestsCount) : 1;
 
@@ -476,9 +484,39 @@ export function submitRSVP(
     guestsCount: validGuestsCount,
     mode: validMode,
     message: cleanMessage,
+    relationship: cleanRelationship,
+    prediction: prediction === "boy" || prediction === "girl" ? prediction : undefined,
+    videoUrl: videoUrl || undefined,
     createdAt: Date.now(),
   };
-  return set(ref(db(), `rsvps/${id}`), rsvp);
+  return set(ref(db(), `rsvps/${id}`), rsvp).then(() => rsvp);
+}
+
+export function updateRSVP(
+  rsvpId: string,
+  updates: Partial<Omit<RSVP, "id" | "createdAt">>
+): Promise<void> {
+  return update(ref(db(), `rsvps/${rsvpId}`), updates);
+}
+
+export function addRSVPComment(
+  rsvpId: string,
+  author: string,
+  text: string
+): Promise<void> {
+  const commentId = `comment_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const cleanAuthor = (author || "").trim() || "Invitado";
+  const cleanText = (text || "").trim();
+  if (!cleanText) return Promise.resolve();
+
+  const comment: RSVPComment = {
+    id: commentId,
+    author: cleanAuthor,
+    text: cleanText,
+    createdAt: Date.now(),
+  };
+
+  return set(ref(db(), `rsvps/${rsvpId}/comments/${commentId}`), comment);
 }
 
 export function subscribeRSVPs(
@@ -539,4 +577,120 @@ export function resetHostCredentials(): Promise<void> {
     set(ref(db(), "meta/hostName"), null),
     set(ref(db(), "meta/hostSetupToken"), null),
   ]).then(() => undefined);
+}
+
+export const DEFAULT_LOCATION: EventLocation = {
+  address: "Carrera 15 #9a-36. Casa 107. Cola del Zorro, El Poblado",
+  reference: "Frente a la portería de la Urbanización Zándalo",
+  photoUrl: "/imagen_entrada.jpeg",
+  googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Carrera 15 #9a-36 Casa 107 Cola del Zorro El Poblado Medellin Urbanizacion Zandalo")}`,
+  wazeUrl: `https://waze.com/ul?q=${encodeURIComponent("Urbanización Zándalo El Poblado Medellín")}&navigate=yes`,
+  appleMapsUrl: `https://maps.apple.com/?q=${encodeURIComponent("Carrera 15 #9a-36 Medellin")}`,
+};
+
+export function setEventLocation(
+  address: string,
+  reference: string,
+  photoUrl?: string
+): Promise<void> {
+  const cleanAddress = (address || "").trim() || DEFAULT_LOCATION.address;
+  const cleanRef = (reference || "").trim() || DEFAULT_LOCATION.reference;
+  const cleanPhoto = (photoUrl || "").trim() || DEFAULT_LOCATION.photoUrl;
+
+  const loc: EventLocation = {
+    address: cleanAddress,
+    reference: cleanRef,
+    photoUrl: cleanPhoto,
+    googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cleanAddress)}`,
+    wazeUrl: `https://waze.com/ul?q=${encodeURIComponent(cleanAddress)}&navigate=yes`,
+    appleMapsUrl: `https://maps.apple.com/?q=${encodeURIComponent(cleanAddress)}`,
+    updatedAt: Date.now(),
+  };
+
+  return set(ref(db(), "meta/eventLocation"), loc);
+}
+
+export function subscribeEventLocation(
+  callback: (loc: EventLocation) => void
+): Unsubscribe {
+  return onValue(ref(db(), "meta/eventLocation"), (snap) => {
+    if (snap.exists()) {
+      callback(snap.val());
+    } else {
+      callback(DEFAULT_LOCATION);
+    }
+  });
+}
+
+export function createSingleUseTenantInvite(createdBy: string = "ChrizDev"): Promise<TenantInvite> {
+  const id = `invite_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const token = `single_use_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+  const invite: TenantInvite = {
+    id,
+    token,
+    used: false,
+    createdBy,
+    createdAt: Date.now(),
+  };
+
+  return set(ref(db(), `meta/tenantInvites/${id}`), invite).then(() => invite);
+}
+
+export function getTenantInviteByToken(token: string): Promise<TenantInvite | null> {
+  return get(ref(db(), "meta/tenantInvites")).then((snap) => {
+    if (!snap.exists()) return null;
+    const raw = snap.val() as Record<string, TenantInvite>;
+    const match = Object.values(raw).find((item) => item.token === token);
+    return match || null;
+  });
+}
+
+export function consumeTenantInvite(inviteId: string, tenantId: string): Promise<void> {
+  return update(ref(db(), `meta/tenantInvites/${inviteId}`), {
+    used: true,
+    usedAt: Date.now(),
+    tenantId,
+  });
+}
+
+export function subscribeTenantInvites(
+  callback: (invites: TenantInvite[]) => void
+): Unsubscribe {
+  return onValue(ref(db(), "meta/tenantInvites"), (snap) => {
+    if (!snap.exists()) return callback([]);
+    const raw = snap.val() as Record<string, TenantInvite>;
+    const list = Object.values(raw).sort((a, b) => b.createdAt - a.createdAt);
+    callback(list);
+  });
+}
+
+export function subscribeMasterAnalytics(
+  callback: (analytics: MasterAnalytics) => void
+): Unsubscribe {
+  return onValue(ref(db()), (snap) => {
+    if (!snap.exists()) {
+      return callback({
+        totalEvents: 1,
+        activeTenantsCount: 1,
+        totalRSVPs: 0,
+        totalVotes: 0,
+        singleUseInvitesCount: 0,
+      });
+    }
+
+    const val = snap.val();
+    const rsvpsCount = val.rsvps ? Object.keys(val.rsvps).length : 0;
+    const votesCount = val.votes ? Object.keys(val.votes).length : 0;
+    const invitesCount = val.meta?.tenantInvites ? Object.keys(val.meta.tenantInvites).length : 0;
+    const tenantsCount = val.meta?.tenants ? Object.keys(val.meta.tenants).length : 1;
+
+    callback({
+      totalEvents: tenantsCount,
+      activeTenantsCount: tenantsCount,
+      totalRSVPs: rsvpsCount,
+      totalVotes: votesCount,
+      singleUseInvitesCount: invitesCount,
+    });
+  });
 }

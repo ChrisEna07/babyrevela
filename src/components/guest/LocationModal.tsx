@@ -1,7 +1,9 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { DEFAULT_LOCATION, subscribeEventLocation } from "@/lib/db";
+import type { EventLocation } from "@/lib/types";
 
 export function LocationModal({
   isOpen,
@@ -11,8 +13,21 @@ export function LocationModal({
   onClose: () => void;
 }) {
   const [fullScreenImage, setFullScreenImage] = useState(false);
+  const [location, setLocation] = useState<EventLocation>(DEFAULT_LOCATION);
+
+  useEffect(() => {
+    const unsub = subscribeEventLocation(setLocation);
+    return () => unsub();
+  }, []);
 
   if (!isOpen) return null;
+
+  const address = location.address || DEFAULT_LOCATION.address;
+  const reference = location.reference || DEFAULT_LOCATION.reference;
+  const photoUrl = location.photoUrl || DEFAULT_LOCATION.photoUrl;
+  const googleMapsUrl = location.googleMapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  const wazeUrl = location.wazeUrl || `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`;
+  const appleMapsUrl = location.appleMapsUrl || `https://maps.apple.com/?q=${encodeURIComponent(address)}`;
 
   return (
     <AnimatePresence>
@@ -47,41 +62,35 @@ export function LocationModal({
             {/* Address Header Card */}
             <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 shadow-sm">
               <span className="text-[11px] font-black uppercase text-amber-900">
-                🏠 Dirección Exacta:
+                🏠 Dirección Exacta del Evento:
               </span>
-              <p className="font-display text-lg text-amber-950 mt-0.5">
-                Carrera 15 #9a-36. Casa 107
-              </p>
-              <p className="text-xs font-bold text-amber-900/90 mt-0.5">
-                Cola del Zorro, El Poblado · <strong>Referencia: Urbanización Zándalo</strong>
+              <p className="font-display text-lg text-amber-950 mt-0.5 leading-snug">
+                {address}
               </p>
             </div>
 
-            {/* Step by Step Route */}
+            {/* Step by Step Route / Reference Note */}
             <div className="flex flex-col gap-2 rounded-2xl border border-sky-200 bg-sky-50/70 p-4 text-xs font-semibold text-slate-700">
               <span className="font-black text-sky-950 uppercase tracking-wide">
-                🧭 Indicaciones Paso a Paso:
+                🧭 Referencia / Indicaciones de Llegada:
               </span>
-              <ol className="list-decimal pl-4 space-y-1.5 text-slate-700 leading-relaxed">
-                <li>Subir por toda la 10 de El Poblado hasta la Cola del Zorro.</li>
-                <li>Subiendo a mano derecha encontrarás una Urbanización llamada <strong>Zándalo</strong>.</li>
-                <li>Al llegar a la portería de esa Urbanización, verás justo al frente una calle (un portal para ingresar).</li>
-                <li>Entras por el portal y es la segunda casa a mano izquierda: <strong>Casa 107</strong>.</li>
-              </ol>
+              <p className="text-slate-800 leading-relaxed font-medium">
+                {reference}
+              </p>
             </div>
 
             {/* Photo of Entrance */}
             <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
               <span className="text-xs font-extrabold text-slate-700">
-                📸 Imagen de Referencia de la Entrada:
+                📸 Imagen de Referencia de la Entrada / Lugar:
               </span>
               <div
                 onClick={() => setFullScreenImage(true)}
-                className="relative h-44 w-full cursor-pointer overflow-hidden rounded-xl border border-slate-300 shadow-sm transition hover:opacity-95"
+                className="relative h-48 w-full cursor-pointer overflow-hidden rounded-xl border border-slate-300 shadow-sm transition hover:opacity-95 bg-slate-900 flex items-center justify-center"
               >
                 <img
-                  src="/imagen_entrada.jpeg"
-                  alt="Foto de la entrada Casa 107"
+                  src={photoUrl}
+                  alt="Foto de la entrada del evento"
                   className="h-full w-full object-cover"
                 />
                 <span className="absolute bottom-2 right-2 rounded-full bg-slate-900/80 px-2.5 py-1 text-[10px] font-extrabold text-white backdrop-blur">
@@ -97,7 +106,7 @@ export function LocationModal({
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Carrera 15 #9a-36 Casa 107 Cola del Zorro El Poblado Medellin Urbanizacion Zandalo")}`}
+                  href={googleMapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-1.5 rounded-xl border border-blue-300 bg-blue-50 py-2.5 text-xs font-black text-blue-900 shadow-sm transition hover:bg-blue-100"
@@ -105,7 +114,7 @@ export function LocationModal({
                   <span>🗺️</span> Google Maps
                 </a>
                 <a
-                  href={`https://waze.com/ul?q=${encodeURIComponent("Urbanización Zándalo El Poblado Medellín")}&navigate=yes`}
+                  href={wazeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-1.5 rounded-xl border border-sky-300 bg-sky-500 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-sky-600"
@@ -113,7 +122,7 @@ export function LocationModal({
                   <span>🚗</span> Waze
                 </a>
                 <a
-                  href={`https://maps.apple.com/?q=${encodeURIComponent("Carrera 15 #9a-36 Medellin")}`}
+                  href={appleMapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 py-2.5 text-xs font-black text-slate-800 shadow-sm transition hover:bg-slate-200"
@@ -122,37 +131,44 @@ export function LocationModal({
                 </a>
               </div>
             </div>
-          </div>
 
-          <button
-            onClick={onClose}
-            className="mt-5 w-full rounded-2xl bg-slate-900 py-3 text-xs font-extrabold text-white shadow transition hover:bg-slate-800"
-          >
-            Entendido, cerrar mapita 🗺️
-          </button>
-
-          {/* Fullscreen Entrance Image Modal */}
-          {fullScreenImage && (
-            <div
-              onClick={() => setFullScreenImage(false)}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+            <button
+              onClick={onClose}
+              className="mt-2 w-full rounded-2xl bg-slate-800 py-3 text-xs font-extrabold text-white shadow transition hover:bg-slate-900"
             >
-              <div className="relative max-h-[90vh] max-w-[90vw] overflow-hidden rounded-2xl">
-                <img
-                  src="/imagen_entrada.jpeg"
-                  alt="Entrada Casa 107 Pantalla Completa"
-                  className="max-h-[85vh] w-auto object-contain rounded-2xl"
-                />
-                <button
-                  onClick={() => setFullScreenImage(false)}
-                  className="absolute top-3 right-3 rounded-full bg-white px-3 py-1 text-xs font-black text-slate-900 shadow"
-                >
-                  ✕ Cerrar
-                </button>
-              </div>
-            </div>
-          )}
+              ¡Entendido! Volver al Evento
+            </button>
+          </div>
         </motion.div>
+
+        {/* Fullscreen Image Lightbox Modal */}
+        {fullScreenImage && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="relative flex flex-col items-center gap-4 max-w-3xl w-full"
+            >
+              <button
+                onClick={() => setFullScreenImage(false)}
+                className="self-end rounded-full bg-white/20 p-2.5 text-white hover:bg-white/40 transition font-bold text-lg"
+              >
+                ✕ Cerrar Pantalla Completa
+              </button>
+              <div className="overflow-hidden rounded-2xl border-4 border-white shadow-2xl max-h-[80vh] w-full flex items-center justify-center bg-black">
+                <img
+                  src={photoUrl}
+                  alt="Imagen de la entrada - Pantalla Completa"
+                  className="max-h-[80vh] w-full object-contain"
+                />
+              </div>
+              <p className="text-center text-xs font-bold text-white/90">
+                {reference}
+              </p>
+            </motion.div>
+          </div>
+        )}
       </div>
     </AnimatePresence>
   );
