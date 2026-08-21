@@ -486,10 +486,16 @@ export function submitRSVP(
     mode: validMode,
     message: cleanMessage,
     relationship: cleanRelationship,
-    prediction: prediction === "boy" || prediction === "girl" ? prediction : undefined,
-    videoUrl: videoUrl || undefined,
     createdAt: Date.now(),
   };
+
+  if (prediction === "boy" || prediction === "girl") {
+    rsvp.prediction = prediction;
+  }
+  if (videoUrl) {
+    rsvp.videoUrl = videoUrl;
+  }
+
   return set(ref(db(), `rsvps/${id}`), rsvp).then(() => rsvp);
 }
 
@@ -497,7 +503,13 @@ export function updateRSVP(
   rsvpId: string,
   updates: Partial<Omit<RSVP, "id" | "createdAt">>
 ): Promise<void> {
-  return update(ref(db(), `rsvps/${rsvpId}`), updates);
+  const cleanUpdates: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined) {
+      cleanUpdates[key] = value;
+    }
+  }
+  return update(ref(db(), `rsvps/${rsvpId}`), cleanUpdates);
 }
 
 export function addRSVPComment(
