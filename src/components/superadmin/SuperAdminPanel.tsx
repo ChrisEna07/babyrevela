@@ -188,10 +188,10 @@ export function SuperAdminPanel({
   const handleSendAdminComment = async (rsvpId: string) => {
     if (!adminCommentText.trim()) return;
     try {
-      await addRSVPComment(rsvpId, adminCommentText.trim(), "Super Admin (ChrizDev)");
+      await addRSVPComment(rsvpId, adminCommentText.trim(), "Mamá & Papá (Anfitriones)");
       setAdminCommentText("");
       setAdminCommentRSVPId(null);
-      showToast("💬 Comentario del Súper Admin añadido exitosamente.");
+      showToast("💬 Respuesta de los padres añadida exitosamente.");
     } catch {
       showToast("❌ Error añadiendo comentario.");
     }
@@ -820,12 +820,17 @@ export function SuperAdminPanel({
                   {/* Render Comments Thread */}
                   {item.comments && Object.keys(item.comments).length > 0 && (
                     <div className="ml-6 mt-1 flex flex-col gap-1 rounded-xl bg-purple-50/60 p-2 border border-purple-100">
-                      {Object.values(item.comments).map((comm) => (
-                        <div key={comm.id} className="text-[11px]">
-                          <span className="font-extrabold text-purple-900">{comm.author}: </span>
-                          <span className="text-slate-700 font-medium">{comm.text}</span>
-                        </div>
-                      ))}
+                      {Object.values(item.comments).map((comm) => {
+                        const cleanAuthor = comm.author
+                          .replace(/Super Admin \([^)]+\)/g, "Mamá & Papá (Anfitriones)")
+                          .replace(/Super Admin/g, "Anfitrión");
+                        return (
+                          <div key={comm.id} className="text-[11px] leading-relaxed">
+                            <strong className="font-extrabold text-purple-950">{cleanAuthor}:</strong>{" "}
+                            <span className="text-slate-700 font-normal">&ldquo;{comm.text}&rdquo;</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 

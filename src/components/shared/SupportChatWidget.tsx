@@ -33,6 +33,7 @@ export function SupportChatWidget() {
   const [chats, setChats] = useState<SupportChatMessage[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState("");
+  const [errorToast, setErrorToast] = useState("");
 
   useEffect(() => {
     const unsub = subscribeSupportChats(setChats);
@@ -41,8 +42,11 @@ export function SupportChatWidget() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorToast("");
+    setSuccessToast("");
+
     if (!guestName.trim()) {
-      alert("Por favor ingresa tu nombre.");
+      setErrorToast("Por favor ingresa tu nombre antes de enviar.");
       return;
     }
     if (!messageText.trim()) return;
@@ -50,16 +54,18 @@ export function SupportChatWidget() {
     setSubmitting(true);
     try {
       const chatId = await sendSupportMessage(guestName.trim(), messageText.trim());
-      const updatedIds = [...myChatIds, chatId];
+      const updatedIds = Array.from(new Set([...myChatIds, chatId]));
       setMyChatIds(updatedIds);
       if (typeof window !== "undefined") {
         localStorage.setItem("my_support_chat_ids", JSON.stringify(updatedIds));
       }
       setMessageText("");
-      setSuccessToast("¡Mensaje enviado al Anfitrión/Súper Admin! Te responderemos muy pronto.");
-      setTimeout(() => setSuccessToast(""), 4000);
-    } catch {
-      alert("Error al enviar mensaje. Inténtalo de nuevo.");
+      setSuccessToast("✨ ¡Mensaje enviado al Anfitrión! Te responderemos aquí mismo.");
+      setTimeout(() => setSuccessToast(""), 5000);
+    } catch (err) {
+      console.error("Support chat error:", err);
+      setErrorToast("⚠️ Error al enviar mensaje. Por favor intenta de nuevo.");
+      setTimeout(() => setErrorToast(""), 5000);
     } finally {
       setSubmitting(false);
     }
@@ -164,6 +170,11 @@ export function SupportChatWidget() {
                 {successToast && (
                   <p className="rounded-xl bg-emerald-900/90 p-2 text-center text-[10px] font-bold text-emerald-200 border border-emerald-500">
                     {successToast}
+                  </p>
+                )}
+                {errorToast && (
+                  <p className="rounded-xl bg-rose-900/90 p-2 text-center text-[10px] font-bold text-rose-200 border border-rose-500">
+                    {errorToast}
                   </p>
                 )}
 

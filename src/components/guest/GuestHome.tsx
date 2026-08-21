@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { castVote, computeTotals, subscribeRSVPs, subscribeState, subscribeVotes } from "@/lib/db";
+import { castVote, computeTotals, likeRSVPMessage, subscribeRSVPs, subscribeState, subscribeVotes } from "@/lib/db";
 import type { AppState, RSVP, StoredGuest, Team, VoteMap } from "@/lib/types";
 import { EVENT_NAME, GUEST_KEY } from "@/lib/constants";
 import { createClientStore } from "@/lib/storage";
@@ -205,6 +205,71 @@ export function GuestHome() {
       )}
 
       {appState !== null && !showReveal && phase === "idle" && <WaitingScreen />}
+
+      {/* 💌 Muro de Felicitaciones y Deseos en Landing */}
+      {rsvps.filter((r) => r.message).length > 0 && (
+        <section className="w-full rounded-3xl border-2 border-purple-200 bg-white/90 p-5 shadow-lg backdrop-blur">
+          <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+            <h3 className="font-display text-lg text-purple-950 flex items-center gap-2">
+              <span>💌</span> Muro de Felicitaciones y Deseos
+            </h3>
+            <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-black text-purple-900">
+              {rsvps.filter((r) => r.message).length} Mensajes
+            </span>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 max-h-72 overflow-y-auto pr-1">
+            {rsvps
+              .filter((r) => r.message)
+              .map((item) => {
+                const commentsList = item.comments ? Object.values(item.comments) : [];
+                return (
+                  <div key={item.id} className="flex flex-col gap-1.5 rounded-2xl border border-purple-100 bg-purple-50/50 p-3.5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span>{item.attending ? "✅" : "❌"}</span>
+                        {item.name}
+                        {item.relationship && (
+                          <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-900">
+                            {item.relationship}
+                          </span>
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => likeRSVPMessage(item.id)}
+                        className="flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-[11px] font-black text-rose-600 border border-rose-200 shadow-sm transition hover:bg-rose-50"
+                      >
+                        ❤️ {item.likes || 0}
+                      </button>
+                    </div>
+
+                    <p className="text-xs font-medium text-slate-700 italic">
+                      &quot;{item.message}&quot;
+                    </p>
+
+                    {/* Comments Thread (Respuestas de los Padres / Anfitriones) */}
+                    {commentsList.length > 0 && (
+                      <div className="mt-1 flex flex-col gap-1 pl-2.5 border-l-2 border-purple-400">
+                        {commentsList.map((c) => {
+                          const cleanAuthor = c.author
+                            .replace(/Super Admin \([^)]+\)/g, "Mamá & Papá (Anfitriones)")
+                            .replace(/Super Admin/g, "Anfitrión");
+                          return (
+                            <div key={c.id} className="text-[11px] leading-relaxed">
+                              <strong className="font-extrabold text-purple-950">{cleanAuthor}:</strong>{" "}
+                              <span className="text-slate-700 font-normal">&ldquo;{c.text}&rdquo;</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        </section>
+      )}
 
       {/* 🎬 Video Saludos de la Familia y Amigos en Landing */}
       {videoRSVPs.length > 0 && (

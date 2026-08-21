@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { addRSVPComment, likeRSVPMessage, submitRSVP, subscribeEventSchedule, subscribeParentsNames, subscribeRSVPs, updateRSVP } from "@/lib/db";
+import { likeRSVPMessage, submitRSVP, subscribeEventSchedule, subscribeParentsNames, subscribeRSVPs, updateRSVP } from "@/lib/db";
 import { EVENT_NAME, EVENT_TAGLINE } from "@/lib/constants";
 import type { EventSchedule, RSVP, Team } from "@/lib/types";
 import { EventCancellationBanner } from "@/components/shared/EventCancellationBanner";
@@ -30,11 +30,6 @@ export function InvitationCard() {
   const [existingRSVPId, setExistingRSVPId] = useState<string | null>(() =>
     typeof window !== "undefined" ? localStorage.getItem("my_baby_rsvp_id") : null
   );
-
-  // Comments state on Wishes Wall
-  const [commentingRSVPId, setCommentingRSVPId] = useState<string | null>(null);
-  const [commentText, setCommentText] = useState("");
-  const [submittingComment, setSubmittingComment] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -159,20 +154,6 @@ export function InvitationCard() {
       setErrorMsg("Ocurrió un error al guardar tu confirmación. Inténtalo de nuevo.");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleAddComment = async (rsvpId: string) => {
-    if (!commentText.trim() || submittingComment) return;
-    setSubmittingComment(true);
-    try {
-      await addRSVPComment(rsvpId, name || "Invitado", commentText);
-      setCommentText("");
-      setCommentingRSVPId(null);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSubmittingComment(false);
     }
   };
 
@@ -917,56 +898,24 @@ export function InvitationCard() {
                     </div>
                   )}
 
-                  {/* Comments Thread */}
-                  <div className="mt-1 flex flex-col gap-1.5 border-t border-pink-200/60 pt-2">
-                    {commentsList.length > 0 && (
-                      <div className="flex flex-col gap-1 pl-2 border-l-2 border-pink-300">
-                        {commentsList.map((c) => (
-                          <div key={c.id} className="text-[11px]">
-                            <strong className="text-slate-800">{c.author}:</strong>{" "}
-                            <span className="text-slate-700">{c.text}</span>
-                          </div>
-                        ))}
+                  {/* Comments Thread (Respuestas de los Padres / Anfitriones) */}
+                  {commentsList.length > 0 && (
+                    <div className="mt-1.5 flex flex-col gap-1.5 border-t border-pink-200/60 pt-2">
+                      <div className="flex flex-col gap-1 pl-2.5 border-l-2 border-purple-400">
+                        {commentsList.map((c) => {
+                          const cleanAuthor = c.author
+                            .replace(/Super Admin \([^)]+\)/g, "Mamá & Papá (Anfitriones)")
+                            .replace(/Super Admin/g, "Anfitrión");
+                          return (
+                            <div key={c.id} className="text-[11px] leading-relaxed">
+                              <strong className="font-extrabold text-purple-950">{cleanAuthor}:</strong>{" "}
+                              <span className="text-slate-700 font-normal">&ldquo;{c.text}&rdquo;</span>
+                            </div>
+                          );
+                        })}
                       </div>
-                    )}
-
-                    {commentingRSVPId === item.id ? (
-                      <div className="flex gap-1.5 pt-1">
-                        <input
-                          value={commentText}
-                          onChange={(e) => setCommentText(e.target.value)}
-                          placeholder="Escribe un comentario..."
-                          className="flex-1 rounded-xl border border-pink-300 bg-white px-3 py-1 text-xs font-medium outline-none focus:border-pink-500"
-                        />
-                        <button
-                          type="button"
-                          disabled={submittingComment}
-                          onClick={() => handleAddComment(item.id)}
-                          className="rounded-xl bg-pink-600 px-3 py-1 text-xs font-bold text-white shadow hover:bg-pink-700"
-                        >
-                          Enviar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCommentingRSVPId(null)}
-                          className="rounded-xl bg-slate-200 px-2 py-1 text-xs text-slate-700 hover:bg-slate-300"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCommentingRSVPId(item.id);
-                          setCommentText("");
-                        }}
-                        className="self-start text-[11px] font-bold text-pink-700 hover:underline"
-                      >
-                        💬 Responder / Comentar ({commentsList.length})
-                      </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

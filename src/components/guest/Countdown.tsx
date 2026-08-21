@@ -14,17 +14,29 @@ export function Countdown({
 
   useEffect(() => {
     if (!endsAt) return;
+    const drumAudio = new Audio("/songreveal/redoble.mp3");
+    drumAudio.loop = true;
+    drumAudio.play().catch(() => {});
+
     const tick = () => {
       const remaining = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
       setSeconds(remaining);
-      if (remaining === 0 && onComplete) {
-        const timeout = window.setTimeout(onComplete, 800);
-        return () => window.clearTimeout(timeout);
+      if (remaining === 0) {
+        drumAudio.pause();
+        drumAudio.currentTime = 0;
+        if (onComplete) {
+          const timeout = window.setTimeout(onComplete, 800);
+          return () => window.clearTimeout(timeout);
+        }
       }
     };
     tick();
     const id = window.setInterval(tick, 100);
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearInterval(id);
+      drumAudio.pause();
+      drumAudio.currentTime = 0;
+    };
   }, [endsAt, onComplete]);
 
   if (seconds === null) return null;
