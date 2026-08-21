@@ -83,9 +83,9 @@ await db.ref("state").set({
   revealChoice: null,
 });
 
-console.log(`✓ meta/pinHash escrito (SHA-256 del PIN del anfitrión/revelador).`);
-console.log(`✓ meta/superAdmin: "${superAdminName}" (PIN: ${superAdminPin}) con hash SHA-256.`);
-console.log(`✓ Nodo state inicializado en fase "idle".`);
+const rulesContent = readFileSync(resolve(here, "../database.rules.json"), "utf8");
+await db.setRules(rulesContent);
+console.log(`✓ Reglas de seguridad (.read=true, .write=true) aplicadas en Realtime Database.`);
 console.log("");
 console.log("Siguientes pasos:");
 console.log("  1. Importa database.rules.json desde la consola de Firebase");

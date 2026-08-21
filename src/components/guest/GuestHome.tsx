@@ -14,6 +14,7 @@ import { RevealScreen } from "./RevealScreen";
 import { BabyThoughts } from "./BabyThoughts";
 import { ConnectionPill } from "@/components/shared/ConnectionPill";
 import { FullPageLoader } from "@/components/shared/FullPageLoader";
+import { LocationModal } from "./LocationModal";
 
 const guestStore = createClientStore<StoredGuest>(GUEST_KEY);
 
@@ -58,6 +59,7 @@ export function GuestHome() {
   const [votes, setVotes] = useState<VoteMap>({});
   const [showingLanding, setShowingLanding] = useState(false);
   const [showStatsOnly, setShowStatsOnly] = useState(false);
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
 
   useEffect(() => {
     const offState = subscribeState(setAppState);
@@ -93,6 +95,12 @@ export function GuestHome() {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center justify-center gap-8 px-4 py-10">
+      {/* Location Modal */}
+      <LocationModal
+        isOpen={locationModalOpen}
+        onClose={() => setLocationModalOpen(false)}
+      />
+
       <header className="flex w-full items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl text-gold-dark">{EVENT_NAME}</h1>
@@ -100,7 +108,13 @@ export function GuestHome() {
             Hola, <span className="text-ink">{guest.name}</span> 👋
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            onClick={() => setLocationModalOpen(true)}
+            className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-extrabold text-amber-950 shadow-sm transition hover:bg-amber-100 flex items-center gap-1"
+          >
+            <span>📍</span> Ubicarme
+          </button>
           <button
             onClick={() => setShowingLanding(true)}
             className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50"

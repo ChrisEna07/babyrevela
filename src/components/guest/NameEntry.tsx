@@ -6,6 +6,7 @@ import { useState } from "react";
 import { EVENT_NAME, EVENT_TAGLINE } from "@/lib/constants";
 import { QRCodeCard } from "@/components/shared/QRCodeCard";
 import { BabyThoughts } from "./BabyThoughts";
+import { LocationModal } from "./LocationModal";
 
 export function NameEntry({
   onDone,
@@ -17,10 +18,17 @@ export function NameEntry({
   onGoToApp?: () => void;
 }) {
   const [name, setName] = useState("");
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
   const valid = name.trim().length >= 2;
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center justify-center gap-8 px-4 py-10">
+      {/* Location Modal */}
+      <LocationModal
+        isOpen={locationModalOpen}
+        onClose={() => setLocationModalOpen(false)}
+      />
+
       {/* Hero Header */}
       <motion.div
         initial={{ y: -24, opacity: 0 }}
@@ -55,6 +63,15 @@ export function NameEntry({
         <p className="max-w-md text-base font-semibold text-slate-600 sm:text-lg">
           {EVENT_TAGLINE}
         </p>
+
+        {/* Location Quick Button on Landing */}
+        <button
+          type="button"
+          onClick={() => setLocationModalOpen(true)}
+          className="flex items-center gap-2 rounded-2xl border-2 border-amber-300 bg-amber-50 px-5 py-2.5 text-xs font-extrabold text-amber-950 shadow-md transition hover:bg-amber-100 hover:scale-105"
+        >
+          <span>📍</span> ¿Dónde es el evento? / Ubicarme e Indicaciones
+        </button>
 
         {activeGuestName && onGoToApp && (
           <motion.div

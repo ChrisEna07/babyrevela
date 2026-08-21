@@ -131,13 +131,21 @@ export function SuperAdminPanel({
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  const MAX_CAPACITY = 20;
+
   const rsvpStats = useMemo(() => {
     const attendingList = rsvps.filter((r) => r.attending);
-    const totalPeople = attendingList.reduce((sum, r) => sum + (r.guestsCount || 1), 0);
+    const presencialList = attendingList.filter((r) => r.mode !== "remota");
+    const remoteList = attendingList.filter((r) => r.mode === "remota");
+    const presencialPeople = presencialList.reduce((sum, r) => sum + (r.guestsCount || 1), 0);
+    const remotePeople = remoteList.length;
     return {
       confirmedCount: attendingList.length,
       declinedCount: rsvps.length - attendingList.length,
-      totalPeople,
+      totalPeople: presencialPeople + remotePeople,
+      presencialPeople,
+      remotePeople,
+      presencialCapacityReached: presencialPeople >= MAX_CAPACITY,
     };
   }, [rsvps]);
 
@@ -514,19 +522,42 @@ export function SuperAdminPanel({
             </div>
           </div>
 
-          {/* Metrics Bar */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="flex flex-col items-center gap-0.5 rounded-2xl border border-pink-200 bg-white p-3 text-center shadow-sm">
-              <span className="text-[11px] font-bold text-slate-500">Asistencias Confirmadas</span>
-              <span className="font-display text-2xl text-pink-900">{rsvpStats.confirmedCount}</span>
+          {/* Capacity Full Warning Banner if 20 Presencial Limit is Reached */}
+          {rsvpStats.presencialCapacityReached && (
+            <div className="flex flex-col gap-2 rounded-2xl border-4 border-rose-500 bg-rose-100 p-4 text-rose-950 shadow-lg animate-pulse">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wide flex items-center gap-1.5 text-rose-950">
+                  🚨 ¡AFORO MÁXIMO PRESENCIAL ALCANZADO ({rsvpStats.presencialPeople} / {MAX_CAPACITY} PERSONAS)!
+                </span>
+                <span className="rounded-full bg-rose-600 px-2.5 py-0.5 text-[10px] font-black text-white">
+                  100% LLENO
+                </span>
+              </div>
+              <p className="text-[11px] font-extrabold text-rose-900 leading-snug">
+                ⚠️ <strong>Atención Súper Admin:</strong> Se ha alcanzado el aforo máximo de 20 personas en el recinto presencial. No envíes más invitaciones presenciales. Comparte únicamente la <strong>Invitación Remota / Virtual</strong>.
+              </p>
+            </div>
+          )}
+
+          {/* Metrics Bar with Capacity Progress */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className={`flex flex-col items-center gap-0.5 rounded-2xl border p-3 text-center shadow-sm ${
+              rsvpStats.presencialCapacityReached ? "border-rose-400 bg-rose-50 text-rose-950 font-black" : "border-amber-200 bg-amber-50 text-amber-950"
+            }`}>
+              <span className="text-[10px] font-extrabold uppercase text-amber-900">🎟️ Presencial</span>
+              <span className="font-display text-xl">{rsvpStats.presencialPeople} / {MAX_CAPACITY}</span>
             </div>
             <div className="flex flex-col items-center gap-0.5 rounded-2xl border border-purple-200 bg-purple-50 p-3 text-center shadow-sm">
-              <span className="text-[11px] font-bold text-purple-900">Total Personas</span>
-              <span className="font-display text-2xl text-purple-900">{rsvpStats.totalPeople}</span>
+              <span className="text-[10px] font-extrabold uppercase text-purple-900">🌐 Remoto</span>
+              <span className="font-display text-xl text-purple-900">{rsvpStats.remotePeople}</span>
+            </div>
+            <div className="flex flex-col items-center gap-0.5 rounded-2xl border border-pink-200 bg-white p-3 text-center shadow-sm">
+              <span className="text-[10px] font-extrabold uppercase text-slate-500">Confirmados</span>
+              <span className="font-display text-xl text-pink-900">{rsvpStats.confirmedCount}</span>
             </div>
             <div className="flex flex-col items-center gap-0.5 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-center shadow-sm">
-              <span className="text-[11px] font-bold text-rose-900">No Asistirán</span>
-              <span className="font-display text-2xl text-rose-800">{rsvpStats.declinedCount}</span>
+              <span className="text-[10px] font-extrabold uppercase text-rose-900">No Asistirán</span>
+              <span className="font-display text-xl text-rose-800">{rsvpStats.declinedCount}</span>
             </div>
           </div>
 

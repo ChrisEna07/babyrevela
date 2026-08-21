@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { submitRSVP, subscribeEventSchedule, subscribeParentsNames } from "@/lib/db";
+import { submitRSVP, subscribeEventSchedule, subscribeParentsNames, subscribeRSVPs } from "@/lib/db";
 import { EVENT_NAME, EVENT_TAGLINE } from "@/lib/constants";
-import type { EventSchedule } from "@/lib/types";
+import type { EventSchedule, RSVP } from "@/lib/types";
+
+const MAX_CAPACITY = 20;
 
 export function InvitationCard() {
   const searchParams = useSearchParams();
@@ -15,9 +17,9 @@ export function InvitationCard() {
 
   const [parentsNames, setParentsNamesState] = useState<string>("Mamá & Papá");
   const [schedule, setSchedule] = useState<EventSchedule | null>(null);
+  const [rsvps, setRsvps] = useState<RSVP[]>([]);
   const [name, setName] = useState("");
   const [attending, setAttending] = useState<boolean>(true);
-  const [guestsCount, setGuestsCount] = useState<number>(1);
   const [message, setMessage] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
@@ -31,11 +33,19 @@ export function InvitationCard() {
   useEffect(() => {
     const unsubParents = subscribeParentsNames(setParentsNamesState);
     const unsubSched = subscribeEventSchedule(setSchedule);
+    const unsubRsvps = subscribeRSVPs(setRsvps);
     return () => {
       unsubParents();
       unsubSched();
+      unsubRsvps();
     };
   }, []);
+
+  const confirmedPresencialCount = rsvps
+    .filter((r) => r.attending && r.mode !== "remota")
+    .reduce((acc, curr) => acc + (curr.guestsCount || 1), 0);
+
+  const capacityReached = confirmedPresencialCount >= MAX_CAPACITY;
 
   const valid = name.trim().length >= 2;
 
@@ -90,7 +100,7 @@ export function InvitationCard() {
     setErrorMsg("");
 
     try {
-      await submitRSVP(name, attending, mode === "remota" ? 1 : guestsCount, message, mode);
+      await submitRSVP(name, attending, 1, message, mode);
       setSubmitted(true);
     } catch (err) {
       console.error(err);
@@ -448,7 +458,7 @@ export function InvitationCard() {
               {attending
                 ? mode === "remota"
                   ? "¡Tu asistencia remota ha sido registrada con éxito! Te esperaremos con los brazos abiertos en la transmisión en vivo."
-                  : `Tu asistencia presencial ha sido registrada con éxito (${guestsCount} persona/s). ¡Nos vemos en la fiesta!`
+                  : "¡Tu asistencia presencial ha sido registrada con éxito! Nos vemos en la fiesta."
                 : "Lamentamos que no puedas acompañarnos, ¡pero agradecemos mucho tu lindo mensaje!"}
             </p>
 
@@ -609,23 +619,23 @@ export function InvitationCard() {
               </div>
             </div>
 
-            {/* Guests Count (Only for Presencial) */}
-            {mode === "presencial" && attending && (
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="guestsCount" className="text-xs font-bold text-slate-600">
-                  ¿Cuántas personas van contigo (incluyéndote)?
-                </label>
-                <select
-                  id="guestsCount"
-                  value={guestsCount}
-                  onChange={(e) => setGuestsCount(Number(e.target.value))}
-                  className="w-full rounded-2xl border-2 border-slate-200 bg-slate-50 px-4 py-3 font-semibold text-slate-800 outline-none transition focus:border-sky-500 focus:bg-white"
+            {/* Capacity Full Warning Banner if Capacity Reached */}
+            {capacityReached && mode === "presencial" && (
+              <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-rose-300 bg-rose-50 p-4 text-center">
+                <span className="text-2xl animate-bounce">🚨</span>
+                <span className="text-xs font-black text-rose-950">
+                  ¡Aforo Presencial Completo (20 / 20 Personas)!
+                </span>
+                <p className="text-xs font-semibold text-rose-900/90 leading-relaxed">
+                  El cupo presencial se ha completado. Te invitamos a cambiar a <strong>Asistencia Remota</strong> para acompañarnos en vivo.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setMode("remota")}
+                  className="mt-1 rounded-xl bg-purple-600 px-4 py-2 text-xs font-extrabold text-white shadow hover:bg-purple-700 transition"
                 >
-                  <option value={1}>1 persona (solo yo)</option>
-                  <option value={2}>2 personas</option>
-                  <option value={3}>3 personas</option>
-                  <option value={4}>4 personas o más</option>
-                </select>
+                  🌐 Cambiar a Asistencia Remota y Confirmar
+                </button>
               </div>
             )}
 
